@@ -15,7 +15,11 @@ class Offer(BaseModel):
     price_aed: float
     retailer: Literal["noon", "amazon_ae", "sharaf_dg", "other"]
     url: str
+    seller: Optional[str] = None                                      # e.g. "Viola-UAE", "Amazon.ae"
+    seller_type: Literal["official", "marketplace_3p", "unknown"] = "unknown"  # drives the warranty catch
+    warranty: Optional[str] = None                                    # raw warranty text from the listing
     in_stock: Optional[bool] = True
+    is_fixture: bool = False                                          # True → sample data, not a live fetch
     captured_at: datetime = Field(default_factory=datetime.utcnow)
 
 class SourceResult(BaseModel):
@@ -24,6 +28,7 @@ class SourceResult(BaseModel):
     facts: List[str] = Field(default_factory=list)
     offers: List[Offer] = Field(default_factory=list)
     citations: List[str] = Field(default_factory=list)
+    is_fixture: bool = False                                          # True when this source used fixture data
     latency_ms: int = 0
     error: Optional[str] = None
 
@@ -42,6 +47,7 @@ class Verdict(BaseModel):
     price_note: str
     confidence: Literal["high", "medium", "low"]
     sources_used: List[str]
+    is_fixture: bool = False                                          # True if any contributing source was fixture
     spoken_summary: str  # <= 60 words for the agent to read out loud
 
 class StartResearchResponse(BaseModel):

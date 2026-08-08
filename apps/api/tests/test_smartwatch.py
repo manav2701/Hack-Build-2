@@ -64,7 +64,7 @@ def test_smartwatch_verdict_pipeline():
     async def _test():
         query = _query()
         job_id = "test-job-smartwatch-1"
-        await db.create_job(job_id, query.session_id, query.dict())
+        await db.create_job(job_id, query.session_id, query.model_dump())
 
         await run_research_pipeline(job_id, query)
 

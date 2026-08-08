@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { VoiceOrb } from '../components/VoiceOrb';
+import { AnimatedAvatar } from '../components/AnimatedAvatar';
 import { ResearchTrail } from '../components/ResearchTrail';
 import { VerdictCards } from '../components/VerdictCards';
 import { TranscriptRail } from '../components/TranscriptRail';
@@ -24,6 +24,8 @@ export default function Home() {
   } = useDalalAgent((jobId) => setActiveJobId(jobId));
 
   const { sources, verdict, isResearching, setSources, setVerdict, setIsResearching } = useResearchStream(activeJobId);
+
+  const lastAgentMessage = messages.filter((m) => m.sender === 'agent').slice(-1)[0]?.text;
 
   // Demo Trigger for instant testing without WebRTC connection
   const triggerDemoScrape = async (category: Category) => {
@@ -121,7 +123,7 @@ export default function Home() {
         </div>
 
         {/* Voice Interface Orb */}
-        <VoiceOrb status={status} isSpeaking={isSpeaking} onToggleConnect={toggleConnect} />
+        <AnimatedAvatar status={status} isSpeaking={isSpeaking} onToggleConnect={toggleConnect} lastMessage={lastAgentMessage} />
 
         {/* Category Trigger Bar for Instant Demo Testing */}
         <div className="flex items-center justify-center gap-2 my-4">
