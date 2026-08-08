@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
-import { MessageSquare, User, Bot } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Smile, User } from 'lucide-react';
 
 export interface Message {
   id: string;
@@ -15,32 +16,61 @@ interface TranscriptRailProps {
 }
 
 export const TranscriptRail: React.FC<TranscriptRailProps> = ({ messages }) => {
-  if (messages.length === 0) return null;
+  const endRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   return (
-    <div className="w-full bg-slate-900/40 rounded-xl p-4 border border-slate-800/60 my-4 max-h-48 overflow-y-auto">
-      <div className="flex items-center gap-2 mb-3">
-        <MessageSquare className="w-4 h-4 text-amber-400" />
-        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Live Transcript</h4>
-      </div>
+    <div className="w-full space-y-3 max-h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-800">
+      <AnimatePresence initial={false}>
+        {messages.map((msg) => {
+          const isUser = msg.sender === 'user';
+          return (
+            <motion.div
+              key={msg.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="flex items-start gap-3 text-xs"
+            >
+              {/* Avatar Icon */}
+              <div
+                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border ${
+                  isUser
+                    ? 'bg-slate-800 border-slate-700 text-slate-300'
+                    : 'bg-gradient-to-tr from-amber-500 to-orange-500 border-amber-400 text-slate-950 shadow-md shadow-amber-500/20'
+                }`}
+              >
+                {isUser ? <User className="w-3.5 h-3.5" /> : <Smile className="w-4 h-4 font-bold" />}
+              </div>
 
-      <div className="space-y-2.5">
-        {messages.map((msg) => (
-          <div key={msg.id} className="flex items-start gap-2 text-xs">
-            {msg.sender === 'user' ? (
-              <User className="w-3.5 h-3.5 text-slate-400 mt-0.5 shrink-0" />
-            ) : (
-              <Bot className="w-3.5 h-3.5 text-amber-400 mt-0.5 shrink-0" />
-            )}
-            <div>
-              <span className={`font-semibold mr-1.5 ${msg.sender === 'user' ? 'text-slate-300' : 'text-amber-400'}`}>
-                {msg.sender === 'user' ? 'You:' : 'Dalal:'}
-              </span>
-              <span className="text-slate-300 leading-normal">{msg.text}</span>
-            </div>
-          </div>
-        ))}
-      </div>
+              {/* Message Bubble Container */}
+              <div className="flex-1">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className={`font-semibold ${isUser ? 'text-slate-400' : 'text-amber-400'}`}>
+                    {isUser ? 'You' : 'DaleelBites AI'}
+                  </span>
+                  <span className="text-[10px] text-slate-500">{msg.timestamp || 'Just now'}</span>
+                </div>
+
+                <div
+                  className={`p-3 rounded-xl border leading-relaxed ${
+                    isUser
+                      ? 'bg-slate-900/80 border-slate-800 text-slate-200'
+                      : 'bg-slate-900 border-amber-500/30 text-slate-100 shadow-md shadow-amber-500/5'
+                  }`}
+                >
+                  {msg.text}
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </AnimatePresence>
+      <div ref={endRef} />
     </div>
   );
 };

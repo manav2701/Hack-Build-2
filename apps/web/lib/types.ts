@@ -38,6 +38,8 @@ export interface Recommendation {
   why: string[];
   watch_outs: string[];
   warranty_note?: string | null;
+  image_url?: string | null;
+  tags?: string[];
 }
 
 /**
@@ -52,7 +54,7 @@ export interface DishRecommendation {
   restaurant: string;
   address?: string | null;
   price_aed: number;
-  app: string;               // talabat | deliveroo | eateasy
+  app: string;               // talabat | deliveroo | eateasy | noon_food
   url: string;               // deep link -> open_order_page
   why: string[];
   watch_outs: string[];
@@ -64,6 +66,8 @@ export interface DishRecommendation {
   delivery_estimate?: string | null;
   screenshot_url?: string | null;
   logo_url?: string | null;
+  image_url?: string | null;
+  tags?: string[];
 }
 
 export type Pick = DishRecommendation | Recommendation;

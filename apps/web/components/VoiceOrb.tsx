@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Mic, MicOff, Volume2, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Mic, MicOff, Volume2, Sparkles, Smile } from 'lucide-react';
 
 interface VoiceOrbProps {
   status: 'disconnected' | 'connecting' | 'connected' | 'speaking';
@@ -13,48 +14,74 @@ export const VoiceOrb: React.FC<VoiceOrbProps> = ({ status, isSpeaking, onToggle
   const isConnected = status === 'connected' || status === 'speaking';
 
   return (
-    <div className="flex flex-col items-center justify-center py-8">
+    <div className="flex flex-col items-center justify-center py-6">
       <div className="relative flex items-center justify-center">
         {/* Pulsing Ripple outer rings */}
         {isConnected && (
           <>
-            <div className="absolute w-44 h-44 rounded-full bg-amber-500/20 animate-ping" />
-            <div className="absolute w-36 h-36 rounded-full bg-emerald-500/30 animate-pulse-slow" />
+            <motion.div
+              animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+              transition={{ repeat: Infinity, duration: 2.5, ease: 'easeInOut' }}
+              className="absolute w-44 h-44 rounded-full bg-amber-500/20 blur-sm"
+            />
+            <motion.div
+              animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.4, 0.2] }}
+              transition={{ repeat: Infinity, duration: 3.5, ease: 'easeInOut' }}
+              className="absolute w-36 h-36 rounded-full bg-orange-500/30"
+            />
           </>
         )}
 
-        {/* Main Mic Button */}
+        {/* Main Glowing Circle Orb */}
         <button
           onClick={onToggleConnect}
-          className={`relative z-10 w-28 h-28 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 transform hover:scale-105 ${
+          aria-label={isConnected ? 'Disconnect DaleelBites voice session' : 'Start talking to DaleelBites AI'}
+          className={`relative z-10 w-28 h-28 rounded-full flex flex-col items-center justify-center shadow-2xl transition-all duration-300 transform hover:scale-105 ${
             isConnected
-              ? 'bg-gradient-to-tr from-amber-500 to-emerald-400 shadow-amber-500/40 ring-4 ring-amber-400/50'
-              : 'bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300'
+              ? 'bg-gradient-to-tr from-amber-600 via-orange-500 to-amber-400 shadow-amber-500/40 ring-4 ring-amber-400/50 text-slate-950'
+              : 'bg-slate-900 hover:bg-slate-800 border-2 border-amber-500/30 text-amber-400 shadow-lg shadow-amber-500/5'
           }`}
         >
           {status === 'connecting' ? (
-            <Sparkles className="w-10 h-10 text-amber-400 animate-spin" />
+            <Sparkles className="w-10 h-10 animate-spin" />
           ) : isConnected ? (
             isSpeaking ? (
-              <Volume2 className="w-12 h-12 text-slate-950 animate-bounce" />
+              <Volume2 className="w-10 h-10 animate-pulse" />
             ) : (
-              <Mic className="w-12 h-12 text-slate-950" />
+              <Smile className="w-11 h-11" />
             )
           ) : (
-            <MicOff className="w-10 h-10 text-slate-400" />
+            <Mic className="w-10 h-10" />
           )}
         </button>
       </div>
 
-      <div className="mt-4 text-center">
-        <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider ${
-          isConnected ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-slate-800 text-slate-400 border border-slate-700'
+      {/* Audio Wave Equalizer Animation */}
+      {isConnected && (
+        <div className="flex items-center gap-1 mt-5 h-6">
+          {[0.6, 1.2, 0.4, 0.9, 1.5, 0.7, 1.1, 0.5, 1.3, 0.8, 1.0, 0.4].map((h, i) => (
+            <motion.div
+              key={i}
+              animate={{ height: isSpeaking ? [4, h * 16, 4] : [4, 8, 4] }}
+              transition={{ repeat: Infinity, duration: 0.8 + (i % 4) * 0.2 }}
+              className="w-1 bg-amber-400 rounded-full"
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Status Pill */}
+      <div className="mt-3 text-center">
+        <span className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider ${
+          isConnected
+            ? 'bg-amber-500/10 text-amber-300 border border-amber-500/30'
+            : 'bg-slate-900 text-slate-400 border border-slate-800'
         }`}>
-          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400 animate-ping' : 'bg-slate-500'}`} />
-          {status === 'disconnected' && 'Click Mic to Talk to Dalal'}
+          <span className={`w-2 h-2 rounded-full ${isConnected ? 'bg-amber-400 animate-ping' : 'bg-slate-600'}`} />
+          {status === 'disconnected' && 'Click Mic to Speak to DaleelBites'}
           {status === 'connecting' && 'Connecting WebRTC Session...'}
-          {status === 'connected' && 'Dalal Listening...'}
-          {status === 'speaking' && 'Dalal Speaking...'}
+          {status === 'connected' && 'Listening...'}
+          {status === 'speaking' && 'DaleelBites Speaking...'}
         </span>
       </div>
     </div>
