@@ -11,7 +11,12 @@ from app.services.synthesizer import synthesizer
 from app.db.supabase import db
 
 logger = logging.getLogger(__name__)
-ADAPTER_TIMEOUT_S = 20.0
+# A food adapter fetches TWO context.dev pages per app (menu + area listing) and runs
+# alongside the reviews adapter, so a cold run measured 14.4s alone and blew the old 20s
+# cap under concurrency — the delivery source timed out and the verdict lost every price.
+# This is NOT bounded by the agent's 20s webhook timeout: research is a background job and
+# get_verdict answers instantly with {status:"running"}. Warm (cached) runs are far faster.
+ADAPTER_TIMEOUT_S = 60.0
 
 Query = Union[CravingQuery, ProductQuery]
 
