@@ -65,13 +65,29 @@ Most shared dishes are **identically priced** across apps; a few differ sharply.
 
 **Rule:** never claim a blanket "cheaper app". State a price delta only for the specific dish where one exists; otherwise the differentiator is fee/ETA/rating/availability.
 
-### 0.7 Reviews — authenticity IS groundable (Zomato + TripAdvisor, not the delivery apps)
+### 0.7 Reviews — the delivery apps give a NUMBER, never the TEXT
 
-`/web/extract` returns full review **text**, author, and rating:
+Tested seven ways with a review-only schema (so the menu could not crowd out the extraction), plus a raw-markdown grep and a probe for dedicated review tabs:
 
-- Zomato `/reviews` → rating 4.4, **424** reviews, 5 texts returned
-- TripAdvisor → rating 4.3, **81** reviews, **15** texts returned, incl. *"authentic Taiwanese cuisine… the Xiao Long Bao are the standout"*
-- Talabat / Deliveroo → **rating number only, zero review text**
+| Page | rating | review count | **review texts** |
+|---|---|---|---|
+| Talabat menu page (×2 branches) | 4 | 0 | **0** |
+| Talabat `?tab=reviews` | 4 | 0 | **0** |
+| Talabat `/reviews` sub-path | — | — | **404 — path does not exist** |
+| Deliveroo menu page | 4.8 | **500** | **0** |
+| Deliveroo `?tab=reviews` | 4.8 | 500 | **0** |
+| EatEasy menu page | 0 | 0 | **0** |
+
+A markdown grep for review-shaped prose returned only **dish descriptions** ("Tender baby pak choi sautéed lightly…"), confirming no customer prose is on the page — not merely that extraction missed it.
+
+**Two consequences for the adapter design:**
+
+1. **The aggregate rating is FREE with the menu fetch** — Deliveroo reports `4.8` and `500` reviews on the menu page itself. No extra call needed for the ranking number.
+2. **Authenticity text needs a SEPARATE source.** Only Zomato and TripAdvisor return review bodies:
+   - Zomato `/reviews` → rating 4.4, **424** reviews, 5 texts
+   - TripAdvisor → rating 4.3, **81** reviews, **15** texts, incl. *"authentic Taiwanese cuisine… the Xiao Long Bao are the standout"*
+
+So the review-first ranking runs on the app's own rating (free), while the *"is it actually authentic?"* narrative comes from a Zomato/TripAdvisor adapter running in parallel.
 
 ### 0.8 Confirmed unobtainable
 
