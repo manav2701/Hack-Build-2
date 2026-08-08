@@ -46,11 +46,12 @@ async def research_status(
         teaser=status_data.get("teaser", "Researching live market...")
     )
 
-@router.get("/get_verdict")
+@router.post("/get_verdict")
 async def get_verdict(
-    job_id: str,
+    body: dict,
     x_dalal_key: str = Header(None, alias="X-Dalal-Key")
 ):
+    job_id = body.get("job_id", "")
     verify_secret(x_dalal_key)
     verdict = await db.get_verdict(job_id)
     if not verdict:
