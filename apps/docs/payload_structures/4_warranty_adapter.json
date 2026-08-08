@@ -1,0 +1,16 @@
+{
+  "source": "warranty",
+  "status": "ok",
+  "facts": [
+    "[context.dev Scrape] Scraped Gulf warranty policy from https://www.noon.com/uae-en/warranty-policy/",
+    "UAE Warranty Alert: Official Apple 1-Year Limited Warranty is valid worldwide including Dubai Mall & Mall of the Emirates Apple Stores.",
+    "Lenovo Regional Warranty: Only units marked 'Official UAE Distribution' qualify for local repair at Sharaf DG / Jumbo service centers; grey market imports require returning to seller.",
+    "Arabic Keyboard: Official Gulf spec models include factory laser-etched Arabic/English keyboard layout."
+  ],
+  "offers": [],
+  "citations": [
+    "https://www.noon.com/uae-en/warranty-policy/"
+  ],
+  "latency_ms": 1217,
+  "error": null
+}

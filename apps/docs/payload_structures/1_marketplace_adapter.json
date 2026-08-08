@@ -1,0 +1,33 @@
+{
+  "source": "marketplace",
+  "status": "ok",
+  "facts": [
+    "[context.dev Live Scrape] Scraped Noon UAE search feed for 'laptop'",
+    "Noon price is 350 AED lower today on MacBook Air M3 compared to official Apple Store UAE.",
+    "Amazon.ae offers same-day Prime delivery in Dubai & Abu Dhabi for Lenovo Legion Slim 5."
+  ],
+  "offers": [
+    {
+      "title": "Apple MacBook Air M3 15-inch 16GB 512GB",
+      "price_aed": 4699.0,
+      "retailer": "noon",
+      "url": "https://www.noon.com/uae-en/macbook-air-m3-15/N70023451A/p/",
+      "in_stock": true,
+      "captured_at": "2026-08-07T20:04:08.365922"
+    },
+    {
+      "title": "Lenovo Legion Slim 5 16\" Ryzen 7 16GB RTX 4060",
+      "price_aed": 4350.0,
+      "retailer": "amazon_ae",
+      "url": "https://www.amazon.ae/dp/B0C77G17C4",
+      "in_stock": true,
+      "captured_at": "2026-08-07T20:04:08.365945"
+    }
+  ],
+  "citations": [
+    "https://www.noon.com/uae-en/search/?q=laptop",
+    "https://www.amazon.ae/"
+  ],
+  "latency_ms": 939,
+  "error": null
+}

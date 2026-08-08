@@ -1,0 +1,18 @@
+{
+  "category": "laptop",
+  "budget_aed": 5000,
+  "offers": [
+    {
+      "title": "Apple MacBook Air M3 15-inch 16GB 512GB",
+      "price_aed": 4699.00,
+      "retailer": "noon",
+      "url": "https://www.noon.com/uae-en/macbook-air-m3-15/N70023451A/p/"
+    },
+    {
+      "title": "Lenovo Legion Slim 5 16\" Ryzen 7 16GB RTX 4060",
+      "price_aed": 4350.00,
+      "retailer": "amazon_ae",
+      "url": "https://www.amazon.ae/dp/B0C77G17C4"
+    }
+  ]
+}

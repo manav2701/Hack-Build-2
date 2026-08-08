@@ -1,0 +1,16 @@
+{
+  "source": "community",
+  "status": "ok",
+  "facts": [
+    "[context.dev Scrape] Scraped r/dubai buyer thread discussions",
+    "r/dubai alert: 4 separate users reported receiving US keyboard layout without Arabic key engraving when buying from 3rd party sellers on Amazon.ae.",
+    "r/UAE experience: Express sellers on Noon fulfill genuine Middle East specs with 24-hour delivery in Dubai Marina.",
+    "Buyer complaint: 8GB RAM base MacBooks struggle with local UAE banking 2FA browser extensions."
+  ],
+  "offers": [],
+  "citations": [
+    "https://www.reddit.com/r/dubai/search/?q=laptop"
+  ],
+  "latency_ms": 694,
+  "error": null
+}

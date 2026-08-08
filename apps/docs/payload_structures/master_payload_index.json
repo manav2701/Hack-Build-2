@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-08-07T20:04:13.359325",
+  "adapters": [
+    "marketplace",
+    "reviews",
+    "community",
+    "warranty"
+  ],
+  "endpoints": [
+    "/start_research",
+    "/research_status",
+    "/get_verdict"
+  ],
+  "files_saved": [
+    "1_marketplace_adapter.json",
+    "2_reviews_adapter.json",
+    "3_community_adapter.json",
+    "4_warranty_adapter.json",
+    "5_research_status_endpoint.json",
+    "6_verdict_endpoint.json"
+  ]
+}

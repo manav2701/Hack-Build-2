@@ -1,0 +1,43 @@
+{
+  "pick": {
+    "name": "MacBook Air M3 15-inch (16GB RAM / 512GB SSD)",
+    "price_aed": 4699.0,
+    "retailer": "noon",
+    "url": "https://www.noon.com/uae-en/macbook-air-m3-15/N70023451A/p/",
+    "why": [
+      "Cheapest live UAE deal today: Noon is 350 AED below Apple Store retail",
+      "Best battery life in class (18.5 hours continuous web browsing)",
+      "Full 1-Year Official Apple UAE Warranty valid at Dubai Mall & MoE"
+    ],
+    "watch_outs": [
+      "Fanless design throttles clock speed under heavy sustained 4K exports",
+      "Base 8GB models lag on heavy multitasking; get 16GB spec"
+    ],
+    "warranty_note": "Official Apple UAE Warranty (Global & Local support)"
+  },
+  "runner_up": {
+    "name": "Lenovo Legion Slim 5 16\" (AMD Ryzen 7 / RTX 4060)",
+    "price_aed": 4350.0,
+    "retailer": "amazon_ae",
+    "url": "https://www.amazon.ae/dp/B0C77G17C4",
+    "why": [
+      "High performance dedicated RTX 4060 graphics for 1440p gaming & rendering",
+      "Same-day Prime delivery available across Dubai and Abu Dhabi",
+      "Dual-fan cooling keeps thermals under 78\u00b0C under load"
+    ],
+    "watch_outs": [
+      "Ensure seller lists 'Official UAE Distribution' for local warranty",
+      "Watch out for US keyboard layouts imported by 3rd party sellers"
+    ],
+    "warranty_note": "Verify Middle East spec for Jumbo/Sharaf DG warranty"
+  },
+  "price_note": "Live market snapshot captured. Marketplace offers verified.",
+  "confidence": "high",
+  "sources_used": [
+    "marketplace",
+    "reviews",
+    "community",
+    "warranty"
+  ],
+  "spoken_summary": "For your budget, your top pick is the MacBook Air M3 15-inch on Noon for 4,699 AED, saving 350 AED today with full Apple UAE warranty. Your runner-up is the Lenovo Legion Slim 5 on Amazon for 4,350 AED if you need dedicated gaming graphics. I've placed both cards on your screen."
+}

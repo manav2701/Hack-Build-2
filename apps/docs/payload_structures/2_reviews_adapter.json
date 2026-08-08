@@ -1,0 +1,16 @@
+{
+  "source": "reviews",
+  "status": "ok",
+  "facts": [
+    "[context.dev Scrape] Scraped technical benchmark feed from https://www.rtings.com/laptop",
+    "RTings benchmark score: MacBook Air M3 leads battery runtime at 18.5 hours continuous web browsing.",
+    "Tom's Hardware: Lenovo Legion Slim 5 delivers 82 FPS in 1440p gaming with thermal throttling under 78\u00b0C.",
+    "Disadvantage: MacBook Air M3 has no active cooling fan; sustained 4K video exports will throttle clock speeds by ~18%."
+  ],
+  "offers": [],
+  "citations": [
+    "https://www.rtings.com/laptop"
+  ],
+  "latency_ms": 693,
+  "error": null
+}

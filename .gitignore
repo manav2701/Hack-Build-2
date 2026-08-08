@@ -1,0 +1,27 @@
+# Secrets & Environment Variables (CRITICAL)
+.env
+.env.local
+.env.*
+!.env.example
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Python / FastAPI
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+ENV/
+env/
+
+# System & OS
+.DS_Store
+Thumbs.db
+*.log
