@@ -39,6 +39,11 @@ _ADAPTER_PATHS: Dict[str, Tuple[str, str]] = {
 _FOOD_FIELDS = frozenset(CravingQuery.model_fields) - {"session_id"}
 _SHOPPING_FIELDS = frozenset(ProductQuery.model_fields) - {"session_id"}
 
+# Shopping is a closed allow-list; everything else in `category` is treated as a craving.
+_SHOPPING_CATEGORIES = frozenset({"laptop", "vacuum", "headphones"})
+# Category values too generic to research as a dish — the craving must come from `dish`.
+_GENERIC_FOOD_WORDS = frozenset({"food", "meal", "dish", "restaurant", "cuisine", "eat", "dinner", "lunch"})
+
 
 def infer_domain(query: Query) -> str:
     """The query type IS the domain selector — no caller passes a domain string."""
@@ -59,24 +64,24 @@ def build_query(payload: Dict[str, Any]) -> Query:
 
     # The live agent sends {category, dish?, budget_aed?} with `dish` OPTIONAL
     # (docs/ELEVENLABS_TOOLS_CONFIG.md). If the model omits `dish`, the body looks
-    # shopping-shaped and a food craving would silently run the shopping pipeline. A
-    # food-ish category is therefore decisive, and its value carries the craving.
-    category = str(payload.get("category") or "").lower()
-    food_category = any(
-        k in category for k in ("food", "dish", "meal", "restaurant", "cuisine", "eat")
-    )
+    # shopping-shaped and a food craving would silently run the whole shopping pipeline.
+    # Shopping is therefore an ALLOW-LIST of the three known product categories; anything
+    # else in `category` is a craving, because food is the active product direction.
+    category = str(payload.get("category") or "").strip().lower()
+    is_shopping_category = category in _SHOPPING_CATEGORIES
 
-    if food_category or (keys & _FOOD_FIELDS) or not (keys & _SHOPPING_FIELDS):
-        model: type[Query] = CravingQuery
+    if is_shopping_category:
+        model: type[Query] = ProductQuery
+    elif (keys & _FOOD_FIELDS) or category or not (keys & _SHOPPING_FIELDS):
+        model = CravingQuery
     else:
         model = ProductQuery
 
-    if model is CravingQuery and not str(payload.get("dish") or "").strip():
-        # Nothing to search for otherwise: fall back to the category text itself
-        # ("sushi", "chinese") rather than researching the literal word "food".
-        fallback = "" if food_category and category in ("food", "") else category
-        if fallback:
-            payload = {**payload, "dish": fallback}
+    if model is CravingQuery and not str(payload.get("dish") or "").strip() and category:
+        # A cuisine or dish arrived in `category` ("sushi", "chinese"). Use it as the
+        # craving — researching the literal word "food" would find nothing useful.
+        if category not in _GENERIC_FOOD_WORDS:
+            payload = {**payload, "dish": category}
 
     try:
         return model(**payload)
