@@ -71,6 +71,16 @@ _FIXTURE_OFFERS = {
               url="https://www.amazon.ae/dp/B08PZHYWJS", seller="Amazon.ae", seller_type="official",
               warranty="Apple 1-Year UAE Limited Warranty", is_fixture=True),
     ],
+    "smartwatch": [
+        Offer(title="Apple Watch Ultra 2 49mm Titanium GPS + Cellular", price_aed=3299.00, retailer="noon",
+              url="https://www.noon.com/uae-en/apple-watch-ultra-2-49mm/N70048821A/p/", seller="Noon",
+              seller_type="official", warranty="Apple 1-Year UAE Limited Warranty (Jumbo service)",
+              is_fixture=True),
+        Offer(title="Samsung Galaxy Watch 6 Classic 47mm LTE", price_aed=1449.00, retailer="amazon_ae",
+              url="https://www.amazon.ae/dp/B0C7J5RTVX", seller="third-party",
+              seller_type="marketplace_3p", warranty="Verify Middle East SKU for Samsung Gulf warranty",
+              is_fixture=True),
+    ],
 }
 
 

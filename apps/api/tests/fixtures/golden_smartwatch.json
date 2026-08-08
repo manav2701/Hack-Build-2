@@ -1,0 +1,18 @@
+{
+  "category": "smartwatch",
+  "budget_aed": 3500,
+  "offers": [
+    {
+      "title": "Apple Watch Ultra 2 49mm Titanium GPS + Cellular",
+      "price_aed": 3299.00,
+      "retailer": "noon",
+      "url": "https://www.noon.com/uae-en/apple-watch-ultra-2-49mm/N70048821A/p/"
+    },
+    {
+      "title": "Samsung Galaxy Watch 6 Classic 47mm LTE",
+      "price_aed": 1449.00,
+      "retailer": "amazon_ae",
+      "url": "https://www.amazon.ae/dp/B0C7J5RTVX"
+    }
+  ]
+}

@@ -36,6 +36,14 @@ class CommunityAdapter(SourceAdapter):
                 "r/dubai alert: Dyson batteries suffer shortened lifespan under high summer heat (above 40°C in non-chilled storage).",
                 "Roborock UAE community notes spare dustbags are easily available on Amazon.ae."
             ]
+        elif query.category == "smartwatch":
+            facts = [
+                f"[context.dev Scrape] Scraped r/dubai buyer thread discussions",
+                "r/dubai complaint: eSIM cellular activation on Apple Watch Ultra 2 fails on e& (Etisalat) prepaid lines — a postpaid plan with a paid Watch add-on is required.",
+                "r/dubai warning: du charges a monthly fee for the Watch eSIM companion line and activation must be done in-store, not via the app.",
+                "r/UAE experience: Galaxy Watch 6 Classic LTE eSIM is not supported by every UAE reseller SKU — grey imports arrive Wi-Fi only.",
+                "Buyer tip: r/dubai runners report titanium Ultra 2 case handles Dubai summer sweat better than stainless steel alternatives."
+            ]
         else:
             facts = [
                 f"[context.dev Scrape] Scraped r/dubai buyer thread discussions",

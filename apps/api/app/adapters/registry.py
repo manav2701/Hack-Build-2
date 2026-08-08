@@ -42,6 +42,17 @@ CATEGORIES: Dict[str, CategorySpec] = {
         warranty_urls=["https://www.noon.com/uae-en/electronics-warranty/"],
         product_urls={},  # TODO: pin real Noon/Amazon product URLs in rehearsal → goes live automatically
     ),
+    "smartwatch": CategorySpec(
+        category="smartwatch",
+        marketplace_queries=["apple watch ultra 2 noon uae", "samsung galaxy watch 6 amazon ae"],
+        review_seeds=["https://www.rtings.com/smartwatch", "https://www.tomsguide.com/smartwatches"],
+        community_keywords=[
+            "apple watch ultra 2 esim etisalat du r/dubai",
+            "galaxy watch 6 lte activation UAE r/dubai"
+        ],
+        warranty_urls=["https://www.jumbo.ae/warranty-terms"],
+        product_urls={},  # TODO: pin real Noon/Amazon product URLs in rehearsal → goes live automatically
+    ),
     "food": CategorySpec(
         category="food",
         marketplace_queries=["noon food cigkoftem uae", "talabat cigkoftem dubai", "deliveroo cigkoftem uae"],
