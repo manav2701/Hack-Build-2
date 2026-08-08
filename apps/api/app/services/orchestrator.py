@@ -56,10 +56,27 @@ def build_query(payload: Dict[str, Any]) -> Query:
     """
     payload = payload or {}
     keys = set(payload)
-    if keys & _SHOPPING_FIELDS and not (keys & _FOOD_FIELDS):
-        model: type[Query] = ProductQuery
+
+    # The live agent sends {category, dish?, budget_aed?} with `dish` OPTIONAL
+    # (docs/ELEVENLABS_TOOLS_CONFIG.md). If the model omits `dish`, the body looks
+    # shopping-shaped and a food craving would silently run the shopping pipeline. A
+    # food-ish category is therefore decisive, and its value carries the craving.
+    category = str(payload.get("category") or "").lower()
+    food_category = any(
+        k in category for k in ("food", "dish", "meal", "restaurant", "cuisine", "eat")
+    )
+
+    if food_category or (keys & _FOOD_FIELDS) or not (keys & _SHOPPING_FIELDS):
+        model: type[Query] = CravingQuery
     else:
-        model = CravingQuery
+        model = ProductQuery
+
+    if model is CravingQuery and not str(payload.get("dish") or "").strip():
+        # Nothing to search for otherwise: fall back to the category text itself
+        # ("sushi", "chinese") rather than researching the literal word "food".
+        fallback = "" if food_category and category in ("food", "") else category
+        if fallback:
+            payload = {**payload, "dish": fallback}
 
     try:
         return model(**payload)

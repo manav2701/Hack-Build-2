@@ -42,10 +42,28 @@ CATEGORIES: Dict[str, CategorySpec] = {
         warranty_urls=["https://www.noon.com/uae-en/electronics-warranty/"],
         product_urls={},  # TODO: pin real Noon/Amazon product URLs in rehearsal → goes live automatically
     ),
+    "food": CategorySpec(
+        category="food",
+        marketplace_queries=["noon food cigkoftem uae", "talabat cigkoftem dubai", "deliveroo cigkoftem uae"],
+        review_seeds=["https://www.zomato.com/dubai"],
+        community_keywords=["best cigkoftem dubai r/dubai", "talabat delivery fee surge"],
+        warranty_urls=["https://food.noon.com/termsofuse/"],
+        product_urls={
+            "noon_food": "https://food.noon.com/uae-en/outlet/CGKFTM0QJ1/",
+            "talabat": "https://www.talabat.com/uae/restaurant/645100/cigkoftem-jumeirah-1",
+            "deliveroo": "https://deliveroo.ae/menu/dubai/jumeirah-1/cigkoftem-jumeirah",
+        },
+    ),
 }
 
 def get_category_spec(category: str) -> CategorySpec:
-    return CATEGORIES.get(category, CATEGORIES["laptop"])
+    # Tolerant category routing (from main): a webhook may send a cuisine or dish where a
+    # category is expected. Only the LEGACY shopping path reads CategorySpec; the food
+    # domain resolves through DomainConfig below and discovers URLs live.
+    cat = (category or "").lower()
+    if any(k in cat for k in ("food", "wonton", "cigkoftem", "biryani", "burger")):
+        return CATEGORIES["food"]
+    return CATEGORIES.get(cat, CATEGORIES["laptop"])
 
 
 # ---------------------------------------------------------------------------
