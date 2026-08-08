@@ -40,7 +40,7 @@ _FOOD_FIELDS = frozenset(CravingQuery.model_fields) - {"session_id"}
 _SHOPPING_FIELDS = frozenset(ProductQuery.model_fields) - {"session_id"}
 
 # Shopping is a closed allow-list; everything else in `category` is treated as a craving.
-_SHOPPING_CATEGORIES = frozenset({"laptop", "vacuum", "headphones"})
+_SHOPPING_CATEGORIES = frozenset({"laptop", "vacuum", "headphones", "smartwatch"})
 # Category values too generic to research as a dish — the craving must come from `dish`.
 _GENERIC_FOOD_WORDS = frozenset({"food", "meal", "dish", "restaurant", "cuisine", "eat", "dinner", "lunch"})
 
