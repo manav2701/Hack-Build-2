@@ -165,6 +165,14 @@ class _RestaurantGroup:
             self.display_name = offer.restaurant
 
     @property
+    def address(self) -> Optional[str]:
+        """First address any app printed for this restaurant — often only one app shows it."""
+        for o in self.offers:
+            if o.address:
+                return o.address
+        return None
+
+    @property
     def rating(self) -> Optional[float]:
         ratings = [o.rating for o in self.offers if o.rating is not None]
         return max(ratings) if ratings else None
@@ -534,6 +542,7 @@ class VerdictSynthesizer:
         rec = DishRecommendation(
             name=cheapest.dish or dish_wanted,
             restaurant=group.display_name,
+            address=group.address,
             price_aed=cheapest.price_aed,
             app=cheapest.app,
             url=cheapest.deep_link,

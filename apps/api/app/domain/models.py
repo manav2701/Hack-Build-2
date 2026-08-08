@@ -47,6 +47,7 @@ class DishOffer(BaseModel):
     """
     # --- from the MENU page (required: no price, no offer) ---
     restaurant: str
+    address: Optional[str] = None                                     # as printed on the page; often absent
     dish: str
     price_aed: float
     app: Literal["talabat", "deliveroo", "eateasy", "other"]
@@ -116,6 +117,7 @@ class DishRecommendation(BaseModel):
     domains (no parallel verdict type), but carries what a food decision needs."""
     name: str                                                         # the dish as listed
     restaurant: str
+    address: Optional[str] = None                                     # where to actually go / order from
     price_aed: float
     app: str                                                          # talabat / deliveroo / eateasy
     url: str                                                          # deep link to the order page

@@ -3,13 +3,35 @@
 import { useState, useCallback } from 'react';
 import { useConversation } from '@elevenlabs/react';
 import { Message } from '../components/TranscriptRail';
+import { checkOrderLink } from '../lib/orderLink';
 
 export function useDalalAgent(onJobStarted?: (jobId: string) => void) {
   const [status, setStatus] = useState<'disconnected' | 'connecting' | 'connected' | 'speaking'>('disconnected');
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentJobId, setCurrentJobId] = useState<string | null>(null);
+  const [handedOffTo, setHandedOffTo] = useState<string | null>(null);
 
   const conversation = useConversation({
+    // The deep-link hand-off. `open_order_page` is a CLIENT tool: the agent cannot
+    // navigate the user's browser from its own cloud, so it calls down the open
+    // connection and this runs locally. Configured agent-side as tool 3 in
+    // docs/ELEVENLABS_TOOLS_CONFIG.md with wait_for_response off.
+    clientTools: {
+      open_order_page: (params: { url?: string }) => {
+        const check = checkOrderLink(params?.url);
+        if (!check.ok) {
+          // Return the refusal to the agent instead of throwing, so a bad URL costs a
+          // spoken apology rather than breaking the conversation turn.
+          console.warn('open_order_page refused:', check.reason);
+          return `Refused: ${check.reason}`;
+        }
+        // A new tab keeps the voice session alive — navigating the current tab would
+        // tear down the WebRTC connection mid-demo.
+        window.open(check.url, '_blank', 'noopener,noreferrer');
+        setHandedOffTo(check.url);
+        return 'Opened the order page.';
+      },
+    },
     onConnect: () => setStatus('connected'),
     onDisconnect: () => setStatus('disconnected'),
     onMessage: (message: any) => {
@@ -68,6 +90,7 @@ export function useDalalAgent(onJobStarted?: (jobId: string) => void) {
     messages,
     currentJobId,
     setCurrentJobId,
+    handedOffTo,
     startSession,
     stopSession,
     sendContextualUpdate,

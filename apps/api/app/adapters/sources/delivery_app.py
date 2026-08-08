@@ -18,6 +18,7 @@ MENU_SCHEMA = {
     "type": "object",
     "properties": {
         "restaurant_name": {"type": "string"},
+        "address": {"type": "string"},
         "rating": {"type": "number"},
         "review_count": {"type": "number"},
         "dishes": {
@@ -36,7 +37,9 @@ MENU_SCHEMA = {
 # A vague instruction truncated Talabat to 20 dishes; demanding the COMPLETE menu returned
 # 90-141 (§0.4). The "do not stop early" phrasing is load-bearing, not decoration.
 MENU_INSTRUCTIONS = (
-    "Extract the restaurant name, its aggregate star rating, and its number of reviews. "
+    "Extract the restaurant name, its street address or the area/neighbourhood it is located "
+    "in exactly as shown on the page (leave empty if the page does not show one), its aggregate "
+    "star rating, and its number of reviews. "
     "Then extract EVERY single menu item on this page - do not stop early and do not summarise. "
     "Walk every menu category and include every dish in each one, with its exact listed name, "
     "its price in AED as a plain number, and whether it is sold out / currently unavailable."
@@ -243,6 +246,7 @@ class DeliveryAppAdapter(SourceAdapter):
 
         for url, data in menus:
             restaurant = (data.get("restaurant_name") or "").strip()
+            address = (data.get("address") or "").strip() or None
             dishes = data.get("dishes") or []
             if not restaurant or not dishes:
                 continue
@@ -265,6 +269,7 @@ class DeliveryAppAdapter(SourceAdapter):
                     continue
                 offers.append(DishOffer(
                     restaurant=restaurant,
+                    address=address,
                     dish=dish_name,
                     price_aed=price,
                     app=app.key if app.key in ("talabat", "deliveroo", "eateasy") else "other",
