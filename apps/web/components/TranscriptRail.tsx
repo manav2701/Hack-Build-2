@@ -2,7 +2,6 @@
 
 import React, { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Smile, User } from 'lucide-react';
 
 export interface Message {
   id: string;
@@ -15,57 +14,54 @@ interface TranscriptRailProps {
   messages: Message[];
 }
 
+/**
+ * The conversation, set as a transcript rather than as chat bubbles: a hairline rule,
+ * a tracked-out speaker label, and the words. Bubbles would import a messaging-app
+ * idiom the rest of this page does not use.
+ */
 export const TranscriptRail: React.FC<TranscriptRailProps> = ({ messages }) => {
   const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages]);
 
+  if (messages.length === 0) {
+    return (
+      <p className="border-t border-raw-ink/15 pt-5 font-sans text-sm leading-relaxed text-raw-mute">
+        Your conversation appears here. Tap the face, or type a craving below.
+      </p>
+    );
+  }
+
   return (
-    <div className="w-full space-y-3 max-h-72 overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-slate-800">
+    <div className="max-h-72 space-y-5 overflow-y-auto border-t border-raw-ink/15 pr-2 pt-5">
       <AnimatePresence initial={false}>
         {messages.map((msg) => {
           const isUser = msg.sender === 'user';
           return (
             <motion.div
               key={msg.id}
-              initial={{ opacity: 0, y: 10 }}
+              initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="flex items-start gap-3 text-xs"
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
             >
-              {/* Avatar Icon */}
-              <div
-                className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 border ${
-                  isUser
-                    ? 'bg-slate-800 border-slate-700 text-slate-300'
-                    : 'bg-gradient-to-tr from-amber-500 to-orange-500 border-amber-400 text-slate-950 shadow-md shadow-amber-500/20'
+              <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                <span className={`label-raw ${isUser ? '' : 'text-raw-red'}`}>
+                  {isUser ? 'You' : 'Dalal'}
+                </span>
+                <span className="font-sans text-[10px] tabular-nums text-raw-mute/70">
+                  {msg.timestamp}
+                </span>
+              </div>
+              <p
+                className={`font-sans text-sm leading-relaxed ${
+                  isUser ? 'text-raw-mute' : 'border-l-2 border-raw-red pl-3 text-raw-ink'
                 }`}
               >
-                {isUser ? <User className="w-3.5 h-3.5" /> : <Smile className="w-4 h-4 font-bold" />}
-              </div>
-
-              {/* Message Bubble Container */}
-              <div className="flex-1">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className={`font-semibold ${isUser ? 'text-slate-400' : 'text-amber-400'}`}>
-                    {isUser ? 'You' : 'DaleelBites AI'}
-                  </span>
-                  <span className="text-[10px] text-slate-500">{msg.timestamp || 'Just now'}</span>
-                </div>
-
-                <div
-                  className={`p-3 rounded-xl border leading-relaxed ${
-                    isUser
-                      ? 'bg-slate-900/80 border-slate-800 text-slate-200'
-                      : 'bg-slate-900 border-amber-500/30 text-slate-100 shadow-md shadow-amber-500/5'
-                  }`}
-                >
-                  {msg.text}
-                </div>
-              </div>
+                {msg.text}
+              </p>
             </motion.div>
           );
         })}

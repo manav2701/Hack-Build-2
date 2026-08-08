@@ -95,30 +95,34 @@ export const AnimatedAvatar: React.FC<AnimatedAvatarProps> = ({
   }, [isSpeaking, words, mouthIndex]);
 
   return (
-    <div className="flex flex-col items-center justify-center py-8">
+    <div className="flex flex-col items-center justify-center py-6">
       <button
         onClick={onToggleConnect}
-        className="relative focus:outline-none"
-        aria-label="Toggle Dalal voice session"
+        className="group relative focus:outline-none"
+        aria-label={isConnected ? 'End the DaleelBites voice session' : 'Start the DaleelBites voice session'}
       >
+        {/* A hard ring rather than a glow — the brutalist grammar has no soft shadows. */}
+        {isConnected && (
+          <span className="absolute inset-0 -m-2 animate-ripple rounded-full border-2 border-raw-red/50" />
+        )}
         <svg
-          width="160"
-          height="160"
+          width="150"
+          height="150"
           viewBox="0 0 120 120"
           className={clsx(
-            'transition-transform duration-300',
-            isConnected ? 'drop-shadow-[0_0_18px_rgba(245,158,11,0.35)]' : 'opacity-80'
+            'relative transition-transform duration-300 ease-raw group-hover:scale-[1.03]',
+            !isConnected && 'opacity-90'
           )}
         >
           <defs>
             <radialGradient id="dalalFace" cx="50%" cy="50%" r="50%" fx="25%" fy="25%">
-              <stop offset="0%" stopColor="#FFEDA8" />
-              <stop offset="50%" stopColor="#F59E0B" />
-              <stop offset="100%" stopColor="#B45309" />
+              <stop offset="0%" stopColor="#FFD9A0" />
+              <stop offset="50%" stopColor="#F8A348" />
+              <stop offset="100%" stopColor="#DB4A2B" />
             </radialGradient>
             <radialGradient id="dalalShade" cx="50%" cy="50%" r="50%" fx="50%" fy="80%">
               <stop offset="70%" stopColor="rgba(0,0,0,0)" />
-              <stop offset="100%" stopColor="rgba(120,53,15,0.45)" />
+              <stop offset="100%" stopColor="rgba(30,30,30,0.35)" />
             </radialGradient>
             <linearGradient id="gloss" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="white" stopOpacity="0.35" />
@@ -135,7 +139,7 @@ export const AnimatedAvatar: React.FC<AnimatedAvatarProps> = ({
             cy="105"
             rx="38"
             ry="7"
-            fill="rgba(0,0,0,0.25)"
+            fill="rgba(30,30,30,0.18)"
             filter="url(#blur)"
             className="pointer-events-none"
           />
@@ -144,8 +148,8 @@ export const AnimatedAvatar: React.FC<AnimatedAvatarProps> = ({
             cy="60"
             r="50"
             fill="url(#dalalFace)"
-            strokeWidth={isConnected ? 2.5 : 1}
-            stroke={isConnected ? '#10B981' : '#475569'}
+            strokeWidth={isConnected ? 3 : 2}
+            stroke={isConnected ? '#1E1E1E' : 'rgba(30,30,30,0.25)'}
             className={clsx('transition-all duration-300', isSpeaking && 'animate-bob-slow')}
           />
           <circle
@@ -175,14 +179,14 @@ export const AnimatedAvatar: React.FC<AnimatedAvatarProps> = ({
               cy="48"
               rx="6"
               ry={isSpeaking ? 6.5 : 5}
-              fill="#1F2937"
+              fill="#1E1E1E"
               style={{ transformOrigin: '42px 48px' }}
             />
             <circle
               cx="44"
               cy="45"
               r="2"
-              fill="#E5E7EB"
+              fill="#E4E2DD"
               opacity="0.9"
             />
             <ellipse
@@ -190,14 +194,14 @@ export const AnimatedAvatar: React.FC<AnimatedAvatarProps> = ({
               cy="48"
               rx="6"
               ry={isSpeaking ? 6.5 : 5}
-              fill="#1F2937"
+              fill="#1E1E1E"
               style={{ transformOrigin: '78px 48px' }}
             />
             <circle
               cx="80"
               cy="45"
               r="2"
-              fill="#E5E7EB"
+              fill="#E4E2DD"
               opacity="0.9"
             />
           </g>
@@ -205,38 +209,33 @@ export const AnimatedAvatar: React.FC<AnimatedAvatarProps> = ({
           {/* Mouth */}
           <path
             d={mouthPath}
-            stroke="#1F2937"
+            stroke="#1E1E1E"
             strokeWidth="4"
             strokeLinecap="round"
             fill="transparent"
             style={{ transformOrigin: '60px 82px' }}
             className={clsx('transition-transform duration-75', isSpeaking && 'animate-talk')}
           />
-
-          {status === 'connecting' && (
-            <text x="60" y="112" textAnchor="middle" fill="#F59E0B" fontSize="8" fontWeight="bold">
-              Connecting…
-            </text>
-          )}
         </svg>
       </button>
 
-      <div className="mt-4 text-center">
+      <div className="mt-5 text-center">
         <span
           className={clsx(
-            'inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider border',
-            isConnected
-              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-              : 'bg-slate-800 text-slate-400 border-slate-700'
+            'inline-flex items-center gap-2 px-3 py-1.5 font-sans text-[10px] font-bold uppercase tracking-wide3',
+            isConnected ? 'bg-raw-red text-white' : 'bg-raw-ink text-raw-base'
           )}
         >
           <span
-            className={clsx('w-2 h-2 rounded-full', isConnected ? 'bg-emerald-400 animate-ping' : 'bg-slate-500')}
+            className={clsx(
+              'h-1.5 w-1.5 rounded-full',
+              isConnected ? 'animate-ping bg-white' : 'bg-raw-base/60'
+            )}
           />
-          {status === 'disconnected' && 'Click Avatar to Talk to Dalal'}
-          {status === 'connecting' && 'Connecting WebRTC Session…'}
-          {status === 'connected' && 'Dalal Listening…'}
-          {status === 'speaking' && 'Dalal Speaking…'}
+          {status === 'disconnected' && 'Tap to talk'}
+          {status === 'connecting' && 'Connecting…'}
+          {status === 'connected' && 'Listening'}
+          {status === 'speaking' && 'Speaking'}
         </span>
       </div>
     </div>

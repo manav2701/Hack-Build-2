@@ -1,15 +1,16 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
-import { Award, ExternalLink, Star, MapPin, Truck, ThumbsUp, AlertCircle, Sparkles, Heart, Filter } from 'lucide-react';
+import { ArrowUpRight, Star, MapPin, Truck, AlertTriangle, Quote } from 'lucide-react';
 import { Verdict, Pick, DishRecommendation, Recommendation, isDish } from '../lib/types';
-import { getFoodImage } from '../lib/foodImages';
+import { getFoodImage, isStockImage } from '../lib/foodImages';
+import { Rise } from './Rise';
 
 interface VerdictCardsProps {
-  verdict: Verdict | null;
+  verdict: Verdict;
 }
 
+/** Rendered wherever a source gave us nothing. Never a zero, never a guess. */
 const DASH = '—';
 
 const APP_LABEL: Record<string, string> = {
@@ -20,165 +21,222 @@ const APP_LABEL: Record<string, string> = {
   careem: 'Careem Food',
 };
 
+function appLabel(key: string): string {
+  return APP_LABEL[key] || key || DASH;
+}
+
+function money(value: unknown): string {
+  return typeof value === 'number' && value > 0 ? value.toLocaleString('en-AE') : DASH;
+}
+
+const VerdictCard: React.FC<{ item: Pick; rank: number }> = ({ item, rank }) => {
+  const isPick = rank === 0;
+  const food = isDish(item) ? (item as DishRecommendation) : null;
+  const product = food ? null : (item as Recommendation);
+
+  const place = food ? food.restaurant : product!.retailer;
+  const channel = appLabel(food ? food.app : product!.retailer);
+  const image = getFoodImage(item.name, place, food ?? { image_url: product?.image_url });
+  const stock = isStockImage(image);
+
+  // Every one of these is optional in the contract. An absent rating is an absent
+  // rating — it renders as nothing at all rather than as a plausible-looking 4.7.
+  const rating = food?.rating ?? null;
+  const reviews = food?.review_count ?? null;
+  const review = food?.top_review ?? null;
+  const hasOrderLink = Boolean(item.url);
+
+  return (
+    <Rise
+      as="article"
+      delay={rank * 0.12}
+      className="group grid grid-cols-1 gap-x-8 gap-y-5 border-t-2 border-raw-ink/15 pt-8 sm:grid-cols-12"
+    >
+      {/* Image — 3/4 aspect, no radius, subtle scale on hover. */}
+      <div className="relative sm:col-span-5">
+        <div className="relative aspect-[4/3] w-full overflow-hidden bg-raw-panel">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={image}
+            alt={item.name || 'Dish'}
+            loading={isPick ? 'eager' : 'lazy'}
+            className="h-full w-full object-cover transition-transform duration-700 ease-raw group-hover:scale-105"
+          />
+          <span
+            className={`absolute left-0 top-0 px-3 py-1.5 font-sans text-[10px] font-bold uppercase tracking-wide3 ${
+              isPick ? 'bg-raw-red text-white' : 'bg-raw-ink text-raw-base'
+            }`}
+          >
+            {isPick ? 'The Pick' : 'Runner-up'}
+          </span>
+          {stock && (
+            <span
+              className="absolute bottom-0 right-0 bg-raw-ink/80 px-2 py-1 font-sans text-[9px] font-bold uppercase tracking-wide2 text-raw-base"
+              title="The app published no photo for this dish, so this is illustrative artwork — not a picture of this restaurant's plate."
+            >
+              Illustrative
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Detail column */}
+      <div className="flex flex-col sm:col-span-7">
+        <div className="flex items-start justify-between gap-6">
+          <div className="min-w-0">
+            <p className="label-raw">
+              {place || DASH} <span className="text-raw-red">/ {channel}</span>
+            </p>
+            <h3 className="mt-2 font-sans text-sm font-bold uppercase leading-snug tracking-wide3 text-raw-ink transition-colors duration-300 group-hover:text-raw-pink">
+              {item.name || DASH}
+            </h3>
+          </div>
+
+          <div className="shrink-0 text-right">
+            <div className="font-display text-4xl leading-none tracking-brutal text-raw-ink">
+              {money(item.price_aed)}
+            </div>
+            <span className="label-raw">AED</span>
+          </div>
+        </div>
+
+        {/* Evidence row — only what a source actually returned. */}
+        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 font-sans text-xs text-raw-mute">
+          {rating !== null && (
+            <span className="inline-flex items-center gap-1.5 font-bold text-raw-ink">
+              <Star className="h-3.5 w-3.5 fill-raw-red text-raw-red" />
+              {rating}
+              {reviews !== null && (
+                <span className="font-normal text-raw-mute">({reviews.toLocaleString('en-AE')} reviews)</span>
+              )}
+            </span>
+          )}
+          {food?.address && (
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin className="h-3.5 w-3.5 text-raw-red" />
+              {food.address}
+            </span>
+          )}
+          {food?.delivery_estimate && (
+            <span className="inline-flex items-center gap-1.5">
+              <Truck className="h-3.5 w-3.5 text-raw-red" />
+              {food.delivery_estimate}
+            </span>
+          )}
+        </div>
+
+        {/* Why — the grounded reasons, verbatim from the synthesizer. */}
+        {item.why?.length > 0 && (
+          <ul className="mt-5 space-y-2">
+            {item.why.map((reason, i) => (
+              <li key={i} className="flex gap-3 font-sans text-sm leading-relaxed text-raw-ink/85">
+                <span className="mt-2 h-px w-4 shrink-0 bg-raw-red" />
+                <span>{reason}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* A real reviewer's own words. Rendered only when one could be attributed. */}
+        {review?.text && (
+          <blockquote className="mt-5 border-l-2 border-raw-red/50 bg-raw-panel/60 py-3 pl-4 pr-3">
+            <Quote className="mb-1.5 h-3.5 w-3.5 text-raw-red" />
+            <p className="font-sans text-sm italic leading-relaxed text-raw-ink/80">“{review.text}”</p>
+            <footer className="label-raw mt-2">
+              {review.author || 'Anonymous'} · {review.source}
+              {review.rating ? ` · ${review.rating}★` : ''}
+            </footer>
+          </blockquote>
+        )}
+
+        {item.watch_outs?.length > 0 && (
+          <ul className="mt-4 space-y-1.5">
+            {item.watch_outs.map((warning, i) => (
+              <li key={i} className="flex items-start gap-2 font-sans text-xs text-raw-mute">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-raw-orange" />
+                <span>{warning}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className="mt-6 flex items-center gap-5 pt-1">
+          {hasOrderLink ? (
+            <a href={item.url} target="_blank" rel="noopener noreferrer" className="btn-raw">
+              <span>Order on {channel}</span>
+              <ArrowUpRight className="h-4 w-4" />
+            </a>
+          ) : (
+            <span className="label-raw">No order link — nothing to hand off to</span>
+          )}
+        </div>
+      </div>
+    </Rise>
+  );
+};
+
 export const VerdictCards: React.FC<VerdictCardsProps> = ({ verdict }) => {
   if (!verdict) return null;
 
-  const renderCard = (item: Pick, isPick: boolean, index: number) => {
-    const isFood = isDish(item);
-    const dishName = item.name || DASH;
-    const restaurantName = isFood ? (item as DishRecommendation).restaurant : (item as Recommendation).retailer;
-    const appKey = isFood ? (item as DishRecommendation).app : (item as Recommendation).retailer;
-    const appName = APP_LABEL[appKey] || appKey || 'Delivery App';
-    const price = typeof item.price_aed === 'number' && item.price_aed > 0 ? item.price_aed : DASH;
-    const rating = isFood ? (item as DishRecommendation).rating || 4.7 : 4.8;
-    const reviewsCount = isFood ? (item as DishRecommendation).review_count || 1240 : 850;
-    const imgUrl = getFoodImage(dishName, restaurantName, isFood ? (item as DishRecommendation).image_url || (item as DishRecommendation).screenshot_url : (item as Recommendation).image_url);
+  // The empty verdict the backend returns when nothing carried the dish: a pick with
+  // no restaurant and no price. Showing it as a card would render a row of dashes, so
+  // it gets its own honest panel instead.
+  const nothingFound =
+    !verdict.pick ||
+    (!verdict.pick.price_aed && !verdict.pick.url && !(verdict.pick as DishRecommendation).restaurant);
 
-    // Tags list
-    const tags = isFood && (item as DishRecommendation).tags?.length
-      ? (item as DishRecommendation).tags!
-      : [isPick ? 'Top Deal' : 'Runner-Up', appName, 'Live Verified'];
-
+  if (nothingFound) {
     return (
-      <motion.div
-        key={index}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: index * 0.15 }}
-        className={`relative group rounded-2xl overflow-hidden border transition-all duration-300 ${
-          isPick
-            ? 'bg-gradient-to-br from-slate-900 via-slate-900 to-amber-950/30 border-amber-500/40 shadow-2xl shadow-amber-500/10 hover:border-amber-400'
-            : 'bg-slate-900/90 border-slate-800 shadow-xl hover:border-slate-700'
-        }`}
-      >
-        <div className="flex flex-col sm:flex-row gap-5 p-5">
-          {/* Dish Image Thumbnail */}
-          <div className="relative shrink-0 w-full sm:w-44 h-40 rounded-xl overflow-hidden bg-slate-950 border border-slate-800">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imgUrl}
-              alt={dishName}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800&q=80';
-              }}
-            />
-            <button
-              aria-label="Add to favorites"
-              className="absolute top-2.5 right-2.5 p-1.5 rounded-full bg-slate-950/60 backdrop-blur-md border border-white/10 text-slate-400 hover:text-amber-400 transition-colors"
-            >
-              <Heart className="w-4 h-4" />
-            </button>
-            <span className={`absolute bottom-2.5 left-2.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${
-              isPick ? 'bg-amber-500 text-slate-950' : 'bg-slate-800 text-slate-300 border border-slate-700'
-            }`}>
-              {isPick ? 'Best Deal' : 'Option 2'}
-            </span>
-          </div>
-
-          {/* Details */}
-          <div className="flex-1 flex flex-col justify-between">
-            <div>
-              <div className="flex items-start justify-between gap-3 mb-1">
-                <div>
-                  <h3 className="text-lg font-bold text-slate-100 group-hover:text-amber-400 transition-colors">
-                    {dishName}
-                  </h3>
-                  <p className="text-xs text-slate-400 font-medium">
-                    by <span className="text-slate-200 font-semibold">{restaurantName}</span> • <span className="text-amber-400/90">{appName}</span>
-                  </p>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-2xl font-black text-amber-400">
-                    {typeof price === 'number' ? price.toLocaleString() : price}
-                  </div>
-                  <span className="text-[10px] font-bold text-amber-500/80 uppercase">AED</span>
-                </div>
-              </div>
-
-              {/* Rating & Reviews */}
-              <div className="flex items-center gap-2 mb-3 text-xs">
-                <div className="flex items-center gap-1 text-amber-400 font-bold">
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  <span>{rating}</span>
-                </div>
-                <span className="text-slate-500">({typeof reviewsCount === 'number' ? reviewsCount.toLocaleString() : reviewsCount} reviews)</span>
-              </div>
-
-              {/* Feature Tags */}
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {tags.map((tag, i) => (
-                  <span
-                    key={i}
-                    className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-
-              {/* Why & Watch-outs */}
-              {item.why && item.why.length > 0 && (
-                <div className="mb-3 space-y-1">
-                  {item.why.slice(0, 2).map((reason, idx) => (
-                    <div key={idx} className="text-xs text-slate-300 flex items-start gap-1.5">
-                      <ThumbsUp className="w-3 h-3 text-emerald-400 shrink-0 mt-0.5" />
-                      <span>{reason}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Action CTA Link */}
-            <div className="mt-2 pt-3 border-t border-slate-800/80 flex items-center justify-between gap-3">
-              <span className="text-[11px] text-slate-400 flex items-center gap-1">
-                <Truck className="w-3 h-3 text-amber-400" />
-                {isFood && (item as DishRecommendation).delivery_estimate ? (item as DishRecommendation).delivery_estimate : '20-30 mins delivery'}
-              </span>
-
-              <a
-                href={item.url || '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs transition-all duration-200 ${
-                  isPick
-                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
-                } ${item.url ? '' : 'pointer-events-none opacity-40'}`}
-              >
-                <span>Order on {appName}</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          </div>
-        </div>
-      </motion.div>
+      <Rise className="border-t-2 border-raw-ink/15 pt-8">
+        <h2 className="font-display text-[clamp(2rem,5vw,3.5rem)] leading-poster tracking-brutal">
+          NOTHING
+          <br />
+          <span className="text-raw-red">CARRIED IT.</span>
+        </h2>
+        <p className="mt-5 max-w-md font-sans text-sm leading-relaxed text-raw-mute">
+          {verdict.pick?.watch_outs?.[0] ||
+            'No live listing carried this dish in the area we searched.'}{' '}
+          Try a different dish, or widen the area.
+        </p>
+      </Rise>
     );
-  };
+  }
 
   return (
     <div className="w-full">
-      {/* Panel Header */}
-      <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-800">
-        <div>
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-amber-400" />
-            <h2 className="text-lg font-bold text-slate-100">Top Picks for You</h2>
+      <Rise as="header" className="mb-8">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <h2 className="font-display text-[clamp(2.5rem,6vw,4.5rem)] leading-poster tracking-brutal">
+            THE
+            <br />
+            <span className="text-raw-red">VERDICT.</span>
+          </h2>
+
+          <div className="flex flex-col items-start gap-2 sm:items-end">
+            <span className="label-raw">
+              Confidence: <span className="text-raw-ink">{verdict.confidence}</span>
+            </span>
+            {verdict.sources_used?.length > 0 && (
+              <span className="label-raw">Sources: {verdict.sources_used.join(' · ')}</span>
+            )}
+            {verdict.is_fixture && (
+              <span className="bg-raw-orange px-2.5 py-1 font-sans text-[10px] font-bold uppercase tracking-wide2 text-raw-ink">
+                Sample data — not a live fetch
+              </span>
+            )}
           </div>
-          <p className="text-xs text-slate-400 mt-0.5">{verdict.price_note || 'Live market analysis finalized from delivery apps & reviews.'}</p>
         </div>
 
-        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-semibold text-slate-400 hover:text-slate-200 hover:border-slate-700 transition-all">
-          <Filter className="w-3.5 h-3.5" />
-          <span>Filter</span>
-        </button>
-      </div>
+        {verdict.price_note && (
+          <p className="mt-5 max-w-2xl font-sans text-sm leading-relaxed text-raw-mute">
+            {verdict.price_note}
+          </p>
+        )}
+      </Rise>
 
-      {/* Options List */}
-      <div className="space-y-4">
-        {renderCard(verdict.pick, true, 0)}
-        {verdict.runner_up && renderCard(verdict.runner_up, false, 1)}
+      <div className="space-y-10">
+        <VerdictCard item={verdict.pick} rank={0} />
+        {verdict.runner_up && <VerdictCard item={verdict.runner_up} rank={1} />}
       </div>
     </div>
   );

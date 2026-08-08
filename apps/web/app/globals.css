@@ -2,16 +2,155 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------------------------------------------------------------------------
+   Raw Form — brutalist poster on warm paper.
+   Tokens live here as CSS variables so plain CSS (scrollbar, selection) and the
+   Tailwind theme name the same colours.
+   --------------------------------------------------------------------------- */
+:root {
+  --raw-base: #E4E2DD;
+  --raw-panel: #D9D6D0;
+  --raw-ink: #1E1E1E;
+  --raw-mute: #444444;
+  --raw-red: #DB4A2B;
+  --raw-orange: #F8A348;
+  --raw-pink: #FF89A9;
+  --raw-ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 @layer base {
+  /* `overflow-x: hidden` must be on BOTH html and body. On body alone the html element
+     still expands to fit an over-wide child, so the layout viewport grows and every
+     other element on the page lays out against that wider box — which is how one
+     too-large headline pushed the whole mobile layout off-screen. */
+  html {
+    -webkit-text-size-adjust: 100%;
+    overflow-x: hidden;
+  }
+
   body {
-    @apply bg-[#0B0F19] text-slate-100 font-sans antialiased selection:bg-amber-500 selection:text-slate-950;
+    @apply bg-raw-base text-raw-ink font-sans antialiased;
+    /* The page itself never scrolls sideways; wide children own their overflow. */
+    overflow-x: hidden;
+    max-width: 100%;
+  }
+
+  ::selection {
+    background: var(--raw-red);
+    color: #ffffff;
+  }
+
+  h1, h2, h3, .display {
+    @apply font-display tracking-brutal;
+    font-weight: 700;
+  }
+
+  /* A brutalist grid has no soft edges — kill the browser's default focus ring in
+     favour of a hard offset block that matches the aesthetic and stays visible. */
+  :focus-visible {
+    outline: 2px solid var(--raw-red);
+    outline-offset: 3px;
   }
 }
 
-/* Glassmorphism custom utilities */
-.glass-panel {
-  background: rgba(15, 23, 42, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* Scrollbars, per the spec: 8px, red thumb on paper track. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--raw-red) var(--raw-base);
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--raw-base);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--raw-red);
+  border-radius: 0;
+}
+
+@layer components {
+  /* The directional-fill CTA: white slides in from the left, text turns red. */
+  .btn-raw {
+    @apply relative inline-flex items-center justify-center gap-2 overflow-hidden
+           bg-raw-ink px-6 py-3 font-sans text-xs font-bold uppercase tracking-wide2
+           text-raw-base transition-colors duration-300 ease-out;
+    border-radius: 0;
+  }
+  .btn-raw::before {
+    content: '';
+    @apply absolute inset-0 bg-white;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-out;
+  }
+  .btn-raw:hover::before {
+    transform: translateX(0);
+  }
+  .btn-raw:disabled::before {
+    transform: translateX(-100%);
+  }
+  .btn-raw > * {
+    @apply relative z-10;
+  }
+  .btn-raw:hover:not(:disabled) {
+    color: var(--raw-red);
+  }
+  .btn-raw:disabled {
+    @apply cursor-not-allowed opacity-40;
+  }
+
+  /* Secondary: a rule-underlined text link in the accent. */
+  .link-raw {
+    @apply inline-flex items-center gap-1.5 border-b border-raw-red/40 pb-0.5 font-sans
+           text-xs font-bold uppercase tracking-wide2 text-raw-red transition-colors;
+  }
+  .link-raw:hover {
+    @apply border-raw-red text-raw-ink;
+  }
+
+  /* Metadata label: the small tracked-out uppercase type that labels every block. */
+  .label-raw {
+    @apply font-sans text-[10px] font-bold uppercase tracking-wide3 text-raw-mute;
+  }
+
+  .field-raw {
+    @apply w-full border-b-2 border-raw-ink/20 bg-transparent px-0 py-3 font-sans text-sm
+           text-raw-ink placeholder-raw-ink/35 transition-colors;
+  }
+  .field-raw:focus {
+    @apply border-raw-red outline-none;
+    outline-offset: 0;
+  }
+
+  /* Soft organic depth behind typography. multiply keeps them ON the paper rather
+     than glowing above it, which is what separates this from a dark-glass UI. */
+  .blob {
+    @apply pointer-events-none absolute rounded-full;
+    filter: blur(140px);
+    mix-blend-mode: multiply;
+  }
+}
+
+@layer utilities {
+  .ease-raw {
+    transition-timing-function: var(--raw-ease);
+  }
+  /* Horizontal rails scroll inside themselves; the page never does. */
+  .rail {
+    @apply flex overflow-x-auto;
+    scrollbar-width: none;
+  }
+  .rail::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Anyone who has asked the OS to calm things down gets a still page. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

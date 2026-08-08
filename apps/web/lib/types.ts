@@ -66,6 +66,7 @@ export interface DishRecommendation {
   delivery_estimate?: string | null;
   screenshot_url?: string | null;
   logo_url?: string | null;
+  /** The dish photo the menu page published, or the order page's own og:image. */
   image_url?: string | null;
   tags?: string[];
 }
@@ -88,4 +89,20 @@ export interface Verdict {
   spoken_summary: string;
   status?: 'running' | 'done';
   job_id?: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  created_at?: number;
+}
+
+/** One past craving from `/v1/auth/history`. `verdict` is null while it is still running. */
+export interface HistoryEntry {
+  job_id: string;
+  dish: string;
+  area: string;
+  created_at: number;
+  verdict: Verdict | null;
 }
