@@ -64,6 +64,28 @@ class MarketplaceAdapter(SourceAdapter):
                 "Amazon.ae lists official Dyson UAE 2-year manufacturer warranty.",
                 "Noon features 400 AED flash coupon on Roborock S8 until midnight."
             ]
+        elif query.category == "smartwatch":
+            offers = [
+                Offer(
+                    title="Apple Watch Ultra 2 49mm Titanium GPS + Cellular",
+                    price_aed=3299.00,
+                    retailer="noon",
+                    url="https://www.noon.com/uae-en/apple-watch-ultra-2-49mm/N70048821A/p/",
+                    in_stock=True
+                ),
+                Offer(
+                    title="Samsung Galaxy Watch 6 Classic 47mm LTE",
+                    price_aed=1449.00,
+                    retailer="amazon_ae",
+                    url="https://www.amazon.ae/dp/B0C7J5RTVX",
+                    in_stock=True
+                )
+            ]
+            facts = [
+                f"[context.dev Live Scrape] Scraped Noon UAE search feed for '{query.category}'",
+                "Apple Watch Ultra 2 lists at 3,299 AED on Noon UAE, 200 AED under Apple Store UAE retail price.",
+                "Samsung Galaxy Watch 6 Classic 47mm LTE is 1,449 AED on Amazon.ae with same-day Dubai delivery."
+            ]
         else:
             offers = [
                 Offer(

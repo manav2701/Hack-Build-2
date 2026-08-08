@@ -11,7 +11,7 @@ from pydantic import BaseModel, HttpUrl
 
 class ProductQuery(BaseModel):
     session_id: str
-    category: Literal["laptop", "vacuum", "headphones"]
+    category: Literal["laptop", "vacuum", "headphones", "smartwatch"]
     budget_aed: float
     must_haves: list[str] = []
     deal_breakers: list[str] = []

@@ -31,6 +31,13 @@ class ReviewsAdapter(SourceAdapter):
                 "Wirecutter rating: Dyson V15 laser illumination picks up 30% more micro-dust on hard tiles.",
                 "Roborock S8 auto-empty dock reduces manual cleaning frequency to once every 60 days."
             ]
+        elif query.category == "smartwatch":
+            facts = [
+                f"[context.dev Scrape] Scraped technical benchmark feed from {target_url}",
+                "RTings battery test: Apple Watch Ultra 2 sustains 36 hours normal use and 72 hours in low power mode.",
+                "Tom's Guide: Ultra 2 peak 3000-nit display stays readable under direct Gulf midday sun.",
+                "Samsung Galaxy Watch 6 Classic tracks sleep and body composition well but battery lasts ~30 hours with AOD enabled."
+            ]
         else:
             facts = [
                 f"[context.dev Scrape] Scraped technical benchmark feed from {target_url}",

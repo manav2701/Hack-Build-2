@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 class ProductQuery(BaseModel):
     session_id: str = "demo-session"
-    category: Literal["laptop", "vacuum", "headphones"] = "laptop"
+    category: Literal["laptop", "vacuum", "headphones", "smartwatch"] = "laptop"
     budget_aed: float = Field(default=5000.0, description="Target budget in AED")
     must_haves: List[str] = Field(default_factory=list, description="User must-have features")
     deal_breakers: List[str] = Field(default_factory=list, description="User deal breakers")

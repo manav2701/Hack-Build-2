@@ -31,6 +31,13 @@ class WarrantyAdapter(SourceAdapter):
                 "Dyson UAE official service center in Al Quoz requires original invoice from authorized retailer for 2-year warranty claims.",
                 "Parallel import vacuums with 110V US plugs will blow 220V UAE wall sockets unless bundled with transformer."
             ]
+        elif query.category == "smartwatch":
+            facts = [
+                f"[context.dev Scrape] Scraped Gulf warranty policy from {target_url}",
+                "Jumbo Electronics honors the Apple 1-Year Limited Warranty locally for Apple Watch Ultra 2 units bought from authorized UAE retailers; AppleCare+ must be added within 60 days.",
+                "Samsung Gulf Warranty: 1-Year local coverage on Galaxy Watch 6 requires a Middle East SKU invoice; grey imports are refused at Jumbo service centers.",
+                "eSIM note: cellular models activated outside the UAE keep hardware warranty but e& / du will not provision the companion line without a local postpaid plan."
+            ]
         else:
             facts = [
                 f"[context.dev Scrape] Scraped Gulf warranty policy from {target_url}",

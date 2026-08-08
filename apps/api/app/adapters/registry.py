@@ -30,6 +30,16 @@ CATEGORIES: Dict[str, CategorySpec] = {
         community_keywords=["sony headphone warranty UAE jumbo r/dubai"],
         warranty_urls=["https://www.noon.com/uae-en/electronics-warranty/"]
     ),
+    "smartwatch": CategorySpec(
+        category="smartwatch",
+        marketplace_queries=["apple watch ultra 2 noon uae", "samsung galaxy watch 6 amazon ae"],
+        review_seeds=["https://www.rtings.com/smartwatch", "https://www.tomsguide.com/smartwatches"],
+        community_keywords=[
+            "apple watch ultra 2 esim etisalat du r/dubai",
+            "galaxy watch 6 lte activation UAE r/dubai"
+        ],
+        warranty_urls=["https://www.jumbo.ae/warranty-terms"]
+    ),
 }
 
 def get_category_spec(category: str) -> CategorySpec:

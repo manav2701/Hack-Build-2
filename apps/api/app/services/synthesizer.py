@@ -91,6 +91,43 @@ class VerdictSynthesizer:
                 "Your top pick is the Dyson V15 Detect on Amazon for 2,799 AED with full official Dyson UAE warranty. "
                 "Your runner-up is the automated Roborock S8 on Noon for 2,399 AED with a 400 AED coupon today. Both details are now on your screen."
             )
+        elif query.category == "smartwatch":
+            pick = Recommendation(
+                name="Apple Watch Ultra 2 49mm Titanium (GPS + Cellular)",
+                price_aed=3299.00,
+                retailer="noon",
+                url="https://www.noon.com/uae-en/apple-watch-ultra-2-49mm/N70048821A/p/",
+                why=[
+                    "Cheapest live UAE deal today: 200 AED below Apple Store UAE retail",
+                    "3000-nit display stays readable under direct Gulf midday sun",
+                    "36-hour battery life, 72 hours in low power mode"
+                ],
+                watch_outs=[
+                    "eSIM needs an e& or du postpaid plan with a paid Watch add-on",
+                    "Only works with iPhone; no Android pairing support"
+                ],
+                warranty_note="Apple 1-Year UAE Warranty honored at Jumbo Electronics; AppleCare+ within 60 days"
+            )
+            runner_up = Recommendation(
+                name="Samsung Galaxy Watch 6 Classic 47mm (LTE)",
+                price_aed=1449.00,
+                retailer="amazon_ae",
+                url="https://www.amazon.ae/dp/B0C7J5RTVX",
+                why=[
+                    "Less than half the price with rotating bezel navigation",
+                    "Strong sleep and body composition tracking for Android users",
+                    "Same-day Amazon.ae delivery across Dubai and Abu Dhabi"
+                ],
+                watch_outs=[
+                    "Confirm Middle East SKU or the LTE eSIM ships Wi-Fi only",
+                    "Battery drops to ~30 hours with always-on display enabled"
+                ],
+                warranty_note="Samsung Gulf 1-Year Warranty requires Middle East SKU invoice"
+            )
+            spoken_summary = (
+                "Your top pick is the Apple Watch Ultra 2 on Noon for 3,299 AED, with local Jumbo warranty support. "
+                "Runner-up is the Samsung Galaxy Watch 6 Classic on Amazon for 1,449 AED. Heads up: watch eSIM needs an e& or du postpaid plan. Both cards are on your screen."
+            )
         else: # headphones
             pick = Recommendation(
                 name="Sony WH-1000XM5 Wireless Headphones",
