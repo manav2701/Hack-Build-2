@@ -38,77 +38,88 @@ FOOD_EXTRACT_INSTRUCTIONS = (
     "delivery fee in AED, active promo offer discounts, and the bestselling menu items with their prices in AED."
 )
 
+from app.adapters.registry import get_category_spec
+
 class FoodDeliveryAdapter(SourceAdapter):
     name = "food_delivery"
 
     async def run(self, query: ProductQuery) -> SourceResult:
         start_time = time.perf_counter()
-        url = "https://food.noon.com/uae-en/outlet/CGKFTM0QJ1/"
+        spec = get_category_spec(query.category)
+        product_urls = spec.product_urls or {"noon_food": "https://food.noon.com/uae-en/outlet/CGKFTM0QJ1/"}
 
         if context_client.is_live():
-            try:
-                data = await self._live_extract(url)
-                if data:
-                    restaurant = data.get("restaurant_name", "Cigkoftem")
-                    items = data.get("menu_items", [])
-                    offers_list = data.get("offers", [])
-                    eta = data.get("eta", "20-30 mins")
-                    fee = data.get("delivery_fee_aed", 0)
+            offers: List[Offer] = []
+            facts: List[str] = []
+            citations: List[str] = []
 
-                    facts = [
-                        f"[context.dev LIVE] Outlet: {restaurant} ({data.get('cuisines', 'Turkish')}) — Rating: {data.get('rating', 4.7)}★",
-                        f"[context.dev LIVE] Delivery: {eta} (Fee: AED {fee})",
-                        f"[context.dev LIVE] Active Deals: {', '.join(offers_list[:2]) if offers_list else 'Standard delivery'}",
-                    ]
+            for app_name, url in product_urls.items():
+                try:
+                    data = await self._live_extract(url)
+                    if data:
+                        restaurant = data.get("restaurant_name", "Cigkoftem")
+                        items = data.get("menu_items", [])
+                        offers_list = data.get("offers", [])
+                        eta = data.get("eta", "20-30 mins")
+                        fee = data.get("delivery_fee_aed", 0)
 
-                    offers = []
-                    for item in items[:5]:
-                        offers.append(
-                            Offer(
-                                title=f"{restaurant} - {item.get('name')}",
-                                price_aed=float(item.get("price_aed", 0)),
-                                retailer="noon",
-                                url=url,
-                                seller=restaurant,
-                                seller_type="official",
-                                warranty=item.get("description", ""),
-                                is_fixture=False
+                        facts.append(f"[context.dev LIVE - {app_name.upper()}] Outlet: {restaurant} ({data.get('cuisines', 'Turkish')}) — {data.get('rating', 4.7)}★ | ETA: {eta} | Fee: AED {fee}")
+                        if offers_list:
+                            facts.append(f"[context.dev LIVE - {app_name.upper()}] Active Deals: {', '.join(offers_list[:2])}")
+                        citations.append(url)
+
+                        for item in items[:4]:
+                            offers.append(
+                                Offer(
+                                    title=f"{restaurant} ({app_name.upper()}) - {item.get('name')}",
+                                    price_aed=float(item.get("price_aed", 0)),
+                                    retailer=app_name,
+                                    url=url,
+                                    seller=restaurant,
+                                    seller_type="official",
+                                    warranty=item.get("description", ""),
+                                    is_fixture=False
+                                )
                             )
-                        )
+                except Exception as e:
+                    logger.warning(f"Food extraction error for {app_name}: {e}")
 
-                    return SourceResult(
-                        source="marketplace",
-                        status="ok",
-                        facts=facts,
-                        offers=offers,
-                        citations=[url],
-                        is_fixture=False,
-                        latency_ms=int((time.perf_counter() - start_time) * 1000)
-                    )
-            except Exception as e:
-                logger.warning(f"Food extraction error: {e}")
+            if offers:
+                return SourceResult(
+                    source="marketplace",
+                    status="ok",
+                    facts=facts,
+                    offers=offers,
+                    citations=citations,
+                    is_fixture=False,
+                    latency_ms=int((time.perf_counter() - start_time) * 1000)
+                )
 
-        # Fixture fallback
+        # Fixture fallback comparing Noon Food vs Talabat
+        url = product_urls.get("noon_food", "https://food.noon.com/uae-en/outlet/CGKFTM0QJ1/")
         return SourceResult(
             source="marketplace",
             status="ok",
-            facts=["[SAMPLE DATA] CigkofteM Turkish Vegan Wraps & Tacos — 4.7★ (20-30 mins delivery)"],
+            facts=[
+                "[SAMPLE DATA - NOON FOOD] CigkofteM — 4.7★ (20-30 mins) | Delivery: FREE | Active Deal: 30% OFF (TASTY30)",
+                "[SAMPLE DATA - TALABAT] CigkofteM — 4.6★ (35-45 mins) | Delivery: AED 7.50 | Standard pricing"
+            ],
             offers=[
                 Offer(
-                    title="Cigkoftem Small Pack (250g)",
-                    price_aed=52.0,
-                    retailer="noon",
+                    title="Cigkoftem Big Wrap (Noon Food Deal)",
+                    price_aed=41.50,
+                    retailer="noon_food",
                     url=url,
                     seller="CigkofteM",
                     seller_type="official",
-                    warranty="Hand-rolled cigkofte with lavash bread and fresh garnish",
+                    warranty="30% OFF applied today on Noon Food + Free Delivery",
                     is_fixture=True
                 ),
                 Offer(
-                    title="Cigkoftem Taco 2X",
+                    title="Cigkoftem Taco 2X (Talabat)",
                     price_aed=48.0,
-                    retailer="noon",
-                    url=url,
+                    retailer="talabat",
+                    url="https://www.talabat.com/uae/restaurant/645100/cigkoftem-jumeirah-1",
                     seller="CigkofteM",
                     seller_type="official",
                     warranty="Two loaded tacos with vegan cig kofte, veggies, red beans",
