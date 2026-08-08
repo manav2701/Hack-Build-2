@@ -5,6 +5,7 @@ from fastapi import APIRouter, Body, Header, HTTPException, BackgroundTasks
 
 from app.domain.models import StartResearchResponse, ResearchStatusResponse
 from app.services.orchestrator import build_query, run_research_pipeline
+from app.services.auth import current_user, store as user_store
 from app.db.supabase import db
 from app.config import settings
 
@@ -32,7 +33,8 @@ async def start_research(
         default_factory=dict,
         openapi_examples={"food": {"value": _CRAVING_EXAMPLE}, "shopping": {"value": _PRODUCT_EXAMPLE}},
     ),
-    x_dalal_key: str = Header(None, alias="X-Dalal-Key")
+    x_dalal_key: str = Header(None, alias="X-Dalal-Key"),
+    authorization: str = Header(None),
 ):
     verify_secret(x_dalal_key)
 
@@ -43,8 +45,20 @@ async def start_research(
     job_id = str(uuid.uuid4())
     session_id = query.session_id or str(uuid.uuid4())
 
+    # Auth is OPTIONAL here on purpose. The voice agent calls this from ElevenLabs' cloud
+    # with no user token, and that anonymous path must keep working exactly as before;
+    # a token, when present, only adds the job to that user's history.
+    user = current_user(authorization)
+    user_id = user["id"] if user else None
+
     # Create job in database
-    await db.create_job(job_id, session_id, query.dict())
+    await db.create_job(job_id, session_id, query.dict(), user_id=user_id)
+    if user_id:
+        user_store.attach_job(
+            job_id, user_id,
+            dish=str(getattr(query, "dish", "") or getattr(query, "category", "")),
+            area=str(getattr(query, "area", "")),
+        )
 
     # Trigger background asyncio research pipeline immediately (returns < 500ms)
     background_tasks.add_task(run_research_pipeline, job_id, query)
@@ -69,10 +83,28 @@ async def research_status(
 # ElevenLabs' cloud, so that response never reaches the page. Without this the UI has
 # nothing to poll and spins forever while the research actually completes server-side.
 @router.get("/latest_job")
-async def latest_job(x_dalal_key: str = Header(None, alias="X-Dalal-Key")):
+async def latest_job(
+    x_dalal_key: str = Header(None, alias="X-Dalal-Key"),
+    authorization: str = Header(None),
+):
     verify_secret(x_dalal_key)
+
+    # A signed-in browser attaches to ITS OWN newest job. Newest-wins globally is fine
+    # for a single-user demo but wrong the moment two people use the deployed app at
+    # once — you would watch a stranger's verdict appear on your screen. The voice agent
+    # still starts jobs anonymously, so an authenticated user with no jobs of their own
+    # falls back to the global newest rather than staring at an empty panel.
+    user = current_user(authorization)
+    if user:
+        owned = user_store.latest_job_for(user["id"])
+        if owned:
+            status = await db.get_job_status(owned["job_id"])
+            return {"job_id": owned["job_id"], "status": status.get("status", "running"),
+                    "query": {"dish": owned.get("dish", ""), "area": owned.get("area", "")},
+                    "scope": "user"}
+
     job = await db.get_latest_job()
-    return job or {"job_id": None, "status": "idle"}
+    return {**job, "scope": "global"} if job else {"job_id": None, "status": "idle"}
 
 
 async def _verdict_payload(job_id: str) -> Dict[str, Any]:

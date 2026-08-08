@@ -25,3 +25,9 @@ env/
 .DS_Store
 Thumbs.db
 *.log
+
+# Local accounts DB (DALAL_DB_PATH). On Railway this lives on a mounted volume.
+data/
+*.db
+*.db-wal
+*.db-shm
