@@ -28,7 +28,7 @@ export default function Home() {
 
   // Attach the page to whatever job the VOICE AGENT started.
   const handleAgentJob = useCallback((jobId: string) => setActiveJobId(jobId), []);
-  useAgentJobDiscovery(status === 'connected' || status === 'speaking', handleAgentJob);
+  useAgentJobDiscovery(true, handleAgentJob);
 
   // Quick Craving Triggers for Food
   const triggerFoodResearch = async (craving: string) => {
@@ -199,14 +199,24 @@ export default function Home() {
         <div className="lg:col-span-7 bg-slate-950/60 rounded-3xl p-6 border border-slate-800/80 shadow-2xl backdrop-blur-sm min-h-[550px] flex flex-col justify-start">
           {verdict ? (
             <VerdictCards verdict={verdict} />
+          ) : isResearching ? (
+            <div className="h-full flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-amber-500/30 rounded-2xl my-auto">
+              <div className="w-16 h-16 rounded-full bg-amber-500/20 border border-amber-400/40 flex items-center justify-center text-amber-400 mb-4 animate-spin">
+                <Sparkles className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-bold text-amber-400 mb-1">Searching Live UAE Deals...</h3>
+              <p className="text-xs text-slate-300 max-w-md leading-relaxed">
+                Extracting live menu prices & reviews across <strong>Noon Food, Talabat, Deliveroo, and Zomato</strong>...
+              </p>
+            </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center p-8 border-2 border-dashed border-slate-800/80 rounded-2xl my-auto">
-              <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-4 animate-pulse">
+              <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mb-4">
                 <Sparkles className="w-8 h-8" />
               </div>
               <h3 className="text-lg font-bold text-slate-200 mb-1">Waiting for Your Food Craving</h3>
               <p className="text-xs text-slate-400 max-w-md leading-relaxed">
-                Click the microphone on the left or tap a popular craving to talk to <strong className="text-amber-400">DaleelBites</strong>. Live deals across Noon Food, Talabat, and Deliveroo will appear right here!
+                Click the avatar on the left or tap a popular craving to talk to <strong className="text-amber-400">DaleelBites</strong>. Live deals across Noon Food, Talabat, and Deliveroo will appear right here!
               </p>
             </div>
           )}

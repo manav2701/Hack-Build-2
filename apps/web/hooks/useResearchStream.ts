@@ -85,11 +85,10 @@ export function useResearchStream(jobId: string | null) {
  * why speaking a craving left the UI searching forever. Polling the backend for the
  * newest job attaches the browser to whatever the agent just kicked off.
  */
-export function useAgentJobDiscovery(enabled: boolean, onFound: (jobId: string) => void) {
+export function useAgentJobDiscovery(enabled: boolean = true, onFound: (jobId: string) => void) {
   const seen = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!enabled) return;
     let cancelled = false;
 
     const check = async () => {
@@ -113,5 +112,5 @@ export function useAgentJobDiscovery(enabled: boolean, onFound: (jobId: string) 
       cancelled = true;
       clearInterval(timer);
     };
-  }, [enabled, onFound]);
+  }, [onFound]);
 }
