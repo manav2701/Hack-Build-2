@@ -97,28 +97,39 @@ def _norm_numbers(text: str) -> Set[float]:
     return out
 
 
+def _is_url(value: str) -> bool:
+    return value.strip().lower().startswith(("http://", "https://", "//"))
+
+
 def _numbers_in_pick(pick: Optional[Union[DishRecommendation, Recommendation]]) -> Set[float]:
     """Numbers that legitimately appear in a pick — the whitelist for rule 2.
 
     Walks the serialised model rather than a hand-written field list so a number
     can never be spoken because someone forgot to add its field here.
+
+    URLs are skipped: a deep link (``.../restaurant/763692/...``) or a CDN image path
+    (``.../1200x800.jpg``) is full of digits that mean nothing to a listener, and
+    harvesting them would let the agent speak "seven six three six nine two" as though
+    it were a grounded fact. A number a person can hear must come from a real field.
     """
     if pick is None:
         return set()
     allowed: Set[float] = set()
-    for value in pick.model_dump().values():
+
+    def take(value) -> None:
         if isinstance(value, bool) or value is None:
-            continue
+            return
         if isinstance(value, (int, float)):
             allowed.add(float(value))
-        elif isinstance(value, str):
-            allowed |= _norm_numbers(value)
-        elif isinstance(value, (list, tuple)):
+        elif isinstance(value, str) and not _is_url(value):
+            allowed.update(_norm_numbers(value))
+
+    for value in pick.model_dump().values():
+        if isinstance(value, (list, tuple)):
             for item in value:
-                if isinstance(item, str):
-                    allowed |= _norm_numbers(item)
-                elif isinstance(item, (int, float)) and not isinstance(item, bool):
-                    allowed.add(float(item))
+                take(item)
+        else:
+            take(value)
     return allowed
 
 
@@ -204,6 +215,19 @@ class _RestaurantGroup:
     @property
     def cheapest(self) -> DishOffer:
         return min(self.offers, key=lambda o: o.price_aed)
+
+    @property
+    def image_url(self) -> Optional[str]:
+        """First photo any app published for this restaurant's matching dish.
+
+        Falls across apps deliberately: Deliveroo may carry the photo while the cheapest
+        listing (Talabat) does not, and the same dish at the same restaurant is the same
+        food. None when no app published one — the client then renders its own artwork.
+        """
+        for offer in self.offers:
+            if offer.image_url:
+                return offer.image_url
+        return None
 
     @property
     def price_spread(self) -> Tuple[DishOffer, DishOffer]:
@@ -572,6 +596,7 @@ class VerdictSynthesizer:
             delivery_estimate=delivery_estimate,
             screenshot_url=cheapest.screenshot_url,
             logo_url=cheapest.logo_url,
+            image_url=group.image_url,
         )
         return rec, price_note
 

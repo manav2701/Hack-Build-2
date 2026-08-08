@@ -68,6 +68,10 @@ class DishOffer(BaseModel):
     # --- presentation (context.dev screenshot / brand endpoints) ---
     screenshot_url: Optional[str] = None
     logo_url: Optional[str] = None
+    # The dish photo as published on the menu page, or the restaurant's hero/og image as a
+    # fallback. Optional because a menu row frequently has no photo — the UI must degrade to
+    # its own artwork rather than show a broken frame, and we never invent a URL.
+    image_url: Optional[str] = None
 
     is_fixture: bool = False
     captured_at: datetime = Field(default_factory=datetime.utcnow)
@@ -135,6 +139,7 @@ class DishRecommendation(BaseModel):
     delivery_estimate: Optional[str] = None                           # "AED 9.00 delivery, within 40 mins (as listed)"
     screenshot_url: Optional[str] = None
     logo_url: Optional[str] = None
+    image_url: Optional[str] = None                                   # dish photo from the menu page / order-page og:image
 
 
 class Verdict(BaseModel):

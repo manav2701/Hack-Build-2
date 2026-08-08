@@ -8,6 +8,7 @@ from app.adapters.base import SourceAdapter
 from app.adapters.context_client import DAY_MS, context_client, is_location_gated
 from app.adapters.registry import DELIVERY_APPS, DeliveryApp
 from app.domain.models import CravingQuery, DishOffer, SourceResult
+from app.services.imagery import first_usable, og_images
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,10 @@ MENU_SCHEMA = {
         "address": {"type": "string"},
         "rating": {"type": "number"},
         "review_count": {"type": "number"},
+        # The card the user decides from needs a picture of the actual dish. Both fields
+        # are best-effort: many menu rows carry no photo, and an absent photo degrades to
+        # the order page's og:image and then to client-side artwork (services/imagery.py).
+        "restaurant_image_url": {"type": "string"},
         "dishes": {
             "type": "array",
             "items": {
@@ -29,6 +34,7 @@ MENU_SCHEMA = {
                     "name": {"type": "string"},
                     "price_aed": {"type": "number"},
                     "sold_out": {"type": "boolean"},
+                    "image_url": {"type": "string"},
                 },
             },
         },
@@ -39,10 +45,14 @@ MENU_SCHEMA = {
 MENU_INSTRUCTIONS = (
     "Extract the restaurant name, its street address or the area/neighbourhood it is located "
     "in exactly as shown on the page (leave empty if the page does not show one), its aggregate "
-    "star rating, and its number of reviews. "
+    "star rating, its number of reviews, and the absolute URL of the restaurant's main header "
+    "or cover photo. "
     "Then extract EVERY single menu item on this page - do not stop early and do not summarise. "
     "Walk every menu category and include every dish in each one, with its exact listed name, "
-    "its price in AED as a plain number, and whether it is sold out / currently unavailable."
+    "its price in AED as a plain number, whether it is sold out / currently unavailable, and the "
+    "absolute URL of the photo shown next to that dish. "
+    "For every image give the full absolute https URL exactly as it appears in the page source. "
+    "Leave an image field empty when that item genuinely has no photo - never guess a URL."
 )
 
 # --- AREA LISTING page ------------------------------------------------------
@@ -278,8 +288,34 @@ class DeliveryAppAdapter(SourceAdapter):
                 note = "best-effort source, thin coverage" if not app.required else "no priced match found"
                 facts.append(f"[context.dev LIVE] {app.key}: no {query.dish} offer in {query.area} ({note}).")
 
+        await self._backfill_images(offers)
+
         offers.sort(key=lambda o: (o.sold_out, o.price_aed))
         return offers, facts, list(dict.fromkeys(citations)), per_app
+
+    @staticmethod
+    async def _backfill_images(offers: List[DishOffer]) -> None:
+        """Give every photo-less offer the order page's own social-preview image.
+
+        Menu extraction returns a dish photo only some of the time, and a verdict card
+        with an empty frame is the thing the user actually complained about. This is a
+        plain HTML GET per distinct deep link (no context.dev credits), capped and
+        failure-tolerant: an app that blocks us simply leaves ``image_url`` None.
+        """
+        missing = [o for o in offers if not o.image_url]
+        if not missing:
+            return
+        try:
+            found = await asyncio.wait_for(
+                og_images({o.deep_link for o in missing}), timeout=12.0
+            )
+        except Exception as exc:  # noqa: BLE001 — imagery must never fail a craving
+            logger.info("delivery_app: og:image backfill skipped (%r)", exc)
+            return
+        for offer in missing:
+            offer.image_url = found.get(offer.deep_link)
+        logger.info("delivery_app: og:image backfill filled %d/%d missing photos",
+                    sum(1 for o in missing if o.image_url), len(missing))
 
     async def _one_app(self, app: DeliveryApp, query: CravingQuery):
         """Menu discovery+extraction and area-listing discovery+extraction, in parallel."""
@@ -311,6 +347,10 @@ class DeliveryAppAdapter(SourceAdapter):
             dishes = data.get("dishes") or []
             if not restaurant or not dishes:
                 continue
+            # The restaurant's own cover photo backs every dish on this menu that has no
+            # photo of its own. Validated, never trusted raw — extraction sometimes returns
+            # the app's logo or a sprite, which reads as a broken card.
+            restaurant_image = first_usable(data.get("restaurant_image_url"))
 
             row = next((r for r in listing_rows if _name_matches(restaurant, r.get("name") or "")), None)
             fee = _num(row.get("delivery_fee_aed")) if row else None
@@ -342,6 +382,8 @@ class DeliveryAppAdapter(SourceAdapter):
                     eta_text=eta,
                     minimum_order_aed=minimum,
                     offer_text=promo,
+                    # The dish's own photo wins; the restaurant cover is the stand-in.
+                    image_url=first_usable(dish.get("image_url"), restaurant_image),
                     is_fixture=False,
                 ))
                 matched += 1
@@ -447,6 +489,7 @@ class DeliveryAppAdapter(SourceAdapter):
                 app="talabat",
                 deep_link="https://www.talabat.com/uae/restaurant/45549/din-tai-fung-dubai-mall-downtown-burj-khalifa?aid=1258",
                 rating=4.0, delivery_fee_aed=0.0, eta_text="Within 40 mins", minimum_order_aed=20.0,
+                image_url="https://images.unsplash.com/photo-1496116218417-1a781b1c416c?auto=format&fit=crop&w=900&q=80",
                 is_fixture=True,
             ),
             DishOffer(
@@ -454,7 +497,9 @@ class DeliveryAppAdapter(SourceAdapter):
                 app="deliveroo",
                 deep_link="https://deliveroo.ae/en/menu/dubai/downtown-dubai-mall/nan-xiang-xiao-long-bao",
                 rating=4.8, review_count=500, delivery_fee_aed=7.0, eta_text="25 min",
-                offer_text="Spend AED 50, get 30% off", is_fixture=True,
+                offer_text="Spend AED 50, get 30% off",
+                image_url="https://images.unsplash.com/photo-1541696432-82c6da8ce7bf?auto=format&fit=crop&w=900&q=80",
+                is_fixture=True,
             ),
         ]
         return SourceResult(
