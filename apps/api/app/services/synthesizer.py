@@ -202,6 +202,32 @@ class _RestaurantGroup:
         return (min(self.offers, key=lambda o: o.price_aed),
                 max(self.offers, key=lambda o: o.price_aed))
 
+    @property
+    def cross_app_delta(self) -> Optional[Tuple[DishOffer, DishOffer]]:
+        """Cheapest vs dearest for the SAME dish on DIFFERENT apps, or None.
+
+        The group's global min/max is NOT a price delta: those are usually two
+        different menu items (a 20 AED single piece vs a 41 AED 6-piece), and on the
+        same app. Using it produced the nonsense claim "AED 18 cheaper on deliveroo
+        than deliveroo". A saving only exists when ONE dish is listed by TWO apps at
+        different prices — which is real but sparse (VENDOR-CONTRACTS §0.6).
+        """
+        by_dish: Dict[frozenset, List[DishOffer]] = {}
+        for o in self.offers:
+            by_dish.setdefault(frozenset(_tokens(o.dish)), []).append(o)
+
+        best: Optional[Tuple[DishOffer, DishOffer]] = None
+        for variants in by_dish.values():
+            cheap = min(variants, key=lambda o: o.price_aed)
+            dear = max(variants, key=lambda o: o.price_aed)
+            if cheap.app == dear.app:
+                continue  # same dish, same app — nothing to compare
+            if dear.price_aed - cheap.price_aed < PRICE_DELTA_EPSILON_AED:
+                continue
+            if best is None or (dear.price_aed - cheap.price_aed) > (best[1].price_aed - best[0].price_aed):
+                best = (cheap, dear)
+        return best
+
     def sort_key(self) -> Tuple[float, int, float]:
         # reviews first; then how many apps corroborate the place; then price, which
         # is ONLY ever a tie-breaker (locked ranking order).
@@ -403,7 +429,13 @@ class VerdictSynthesizer:
             o.is_fixture for o in used_offers
         )
 
-        sources_used = self._sources_used(offer_sources, review_sources if winner_reviews else [])
+        # Credit the review source when review text reached EITHER pick — the runner-up's
+        # authenticity note is still a contribution, and omitting it under-reported the
+        # sources behind the verdict (CONTRACTS.md §4.3).
+        reviews_contributed = bool(winner_reviews) or bool(
+            runner_up is not None and runner_up.authenticity_note
+        )
+        sources_used = self._sources_used(offer_sources, review_sources if reviews_contributed else [])
         confidence = self._food_confidence(winner, winner_reviews, is_fixture)
 
         spoken = self._compose_food_spoken(pick, runner_up, winner, price_note)
@@ -430,17 +462,21 @@ class VerdictSynthesizer:
         # the cheapest app, but we only ever SAY "cheaper" when a real delta exists;
         # most shared dishes are identically priced across apps (VENDOR-CONTRACTS §0.6),
         # so a blanket "cheaper on X" claim would be a lie on most dishes.
-        cheapest, dearest = group.price_spread
-        delta = dearest.price_aed - cheapest.price_aed
-        has_delta = delta >= PRICE_DELTA_EPSILON_AED
+        cheapest = group.cheapest
+        # Only a SAME-dish, CROSS-app comparison counts as a saving.
+        spread = group.cross_app_delta
+        has_delta = spread is not None
+        if has_delta:
+            cheap_side, dear_side = spread
+            delta = dear_side.price_aed - cheap_side.price_aed
 
-        if len(group.apps) < 2:
+        if has_delta:
+            price_note = (f"{cheap_side.dish} differs by app: {cheap_side.app} "
+                          f"AED {_fmt_money(cheap_side.price_aed)} vs {dear_side.app} "
+                          f"AED {_fmt_money(dear_side.price_aed)}, a AED {_fmt_money(delta)} difference.")
+        elif len(group.apps) < 2:
             price_note = (f"Only {cheapest.app} lists it at {group.display_name}: "
                           f"AED {_fmt_money(cheapest.price_aed)}. No second app to compare against.")
-        elif has_delta:
-            price_note = (f"Prices differ for this dish: {cheapest.app} AED {_fmt_money(cheapest.price_aed)} "
-                          f"vs {dearest.app} AED {_fmt_money(dearest.price_aed)}, "
-                          f"a AED {_fmt_money(delta)} difference.")
         else:
             price_note = (f"Prices match across {' and '.join(group.apps)} at "
                           f"AED {_fmt_money(cheapest.price_aed)} — no saving either way.")
@@ -452,7 +488,8 @@ class VerdictSynthesizer:
             else:
                 why.append(f"Rated {_fmt_rating(group.rating)} on {cheapest.app}")
         if has_delta:
-            why.append(f"AED {_fmt_money(delta)} cheaper on {cheapest.app} than {dearest.app} for this dish")
+            why.append(f"AED {_fmt_money(delta)} cheaper on {cheap_side.app} than "
+                       f"{dear_side.app} for {cheap_side.dish}")
         elif len(group.apps) >= 2:
             why.append(f"Same price on {' and '.join(group.apps)}, so no app is cheaper here")
         if group_reviews:
@@ -468,9 +505,12 @@ class VerdictSynthesizer:
         if group_sold_out:
             so = group_sold_out[0]
             watch_outs.append(f"{so.dish} is showing sold out on {so.app} right now")
-        if group.rating is not None and (group.review_count or 0) < 25:
+        # Only warn about a THIN review base when we actually know the count. An unknown
+        # count (None) is not zero — claiming "rests on only 0 reviews" was stating a
+        # number the source never gave us.
+        if group.rating is not None and group.review_count is not None and group.review_count < 25:
             watch_outs.append(
-                f"That {_fmt_rating(group.rating)} rests on only {group.review_count or 0} reviews"
+                f"That {_fmt_rating(group.rating)} rests on only {group.review_count} reviews"
             )
         if cheapest.minimum_order_aed is not None:
             watch_outs.append(f"{cheapest.app} lists a AED {_fmt_money(cheapest.minimum_order_aed)} minimum order")
@@ -528,7 +568,11 @@ class VerdictSynthesizer:
         elif price_note.startswith("Prices differ"):
             bits.append("That's the cheaper app for this dish today.")
         if pick.authenticity_note:
-            bits.append("Reviewers call it the real thing.")
+            # Say only that reviewers wrote about it, never HOW they rated it. We do no
+            # sentiment analysis, and the canned "reviewers call it the real thing" was
+            # spoken over a lukewarm quote ("Still good but not great") — an endorsement
+            # the source never gave. The verbatim quote is on the card; let it speak.
+            bits.append("There's a reviewer's own words on your screen.")
         if runner_up is not None:
             bits.append(f"Runner-up is {runner_up.restaurant} at AED {_fmt_money(runner_up.price_aed)}.")
         if pick.delivery_estimate:
