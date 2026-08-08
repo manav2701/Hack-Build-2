@@ -76,8 +76,8 @@ async def _verdict_payload(job_id: str) -> Dict[str, Any]:
 
 
 # POST is the shape the LIVE ElevenLabs agent is configured against
-# (docs/API-CONTRACT.md; agent_1401kzetahref6nb0pvsc85ennaf sends {"job_id": ...}).
-# The dashboard config is the harder side to change, so the backend matches IT.
+# (docs/ELEVENLABS_TOOLS_CONFIG.md — the agent sends {"job_id": ...}). The dashboard
+# config is the harder side to change, so the backend matches IT.
 @router.post("/get_verdict")
 async def get_verdict_post(
     payload: Dict[str, Any] = Body(default_factory=dict, openapi_examples={
@@ -88,7 +88,7 @@ async def get_verdict_post(
     return await _verdict_payload(str((payload or {}).get("job_id") or ""))
 
 
-# GET is kept for the browser poller and for manual curl checks. Same body either way.
+# GET is kept for the browser poller and manual curl checks. Same body either way.
 @router.get("/get_verdict")
 async def get_verdict(
     job_id: str,
