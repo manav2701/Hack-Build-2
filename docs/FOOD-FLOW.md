@@ -14,7 +14,7 @@ flowchart TD
     B -->|"delivery or dine-in?<br/>spice / authenticity / area"| C["start_research (non-blocking, returns job_id <500ms)"]
     C --> D["Parallel context.dev research (while the agent keeps talking)"]
     D --> D1["Discovery: places serving the dish<br/>Google / Zomato + reviews"]
-    D --> D2["Delivery apps: Talabat · Deliveroo · Careem<br/>dish price · delivery fee · ETA · availability"]
+    D --> D2["Delivery apps: Talabat · Deliveroo (EatEasy best-effort)<br/>menu page: dish price · availability · rating<br/>listing page: fee · ETA (published estimate)"]
     D --> D3["Authenticity signals<br/>reviews mentioning real má-là Sichuan"]
     D --> D4["Screenshot + brand logo for each pick"]
     D1 --> E["Synthesize: best place + best-value app (grounded)"]
@@ -22,7 +22,7 @@ flowchart TD
     D3 --> E
     D4 --> E
     E --> F{"Delivery or dine-in?"}
-    F -->|Delivery| G["Cross-app deal pick<br/>'38 AED, free delivery on Deliveroo right now'"]
+    F -->|Delivery| G["Pick: carries the dish → best rated<br/>price only if it genuinely differs"]
     G --> H[["🚀 Client tool: open_order_page(url)<br/>DEEP-LINK hand-off to the app"]]
     F -->|Dine-in| I["Best authentic place<br/>rating · hours · map link"]
     I -.->|V2| J[["📞 Telephony: agent CALLS the restaurant<br/>and books your table"]]
@@ -38,19 +38,27 @@ The signature mechanic is unchanged from the shopping build: **the interview que
 |---|---|---|---|
 | Voice agent, barge-in, interview | **ElevenLabs** Agents | intake + branch | Core *(carryover)* |
 | Non-blocking research + poll/realtime completion | engine | `start_research` → `get_verdict` | Core *(carryover)* |
-| Structured dish extract (price · fee · ETA · availability) | **context.dev** `/web/extract`, `maxPages:1` | D2 | Core *(proven live)* |
-| Cross-app deal comparison → best-value pick | synthesizer | E → G | Core |
+| Live restaurant discovery from the spoken craving | **context.dev** `POST /web/search` | D → D2 | Core *(proven live 2026-08-08)* |
+| Structured dish extract (dish · price · sold-out · rating · review count) — **menu page** | **context.dev** `/web/extract`, `maxPages:1` | D2 | Core *(proven live)* |
+| Delivery fee · ETA · min order · offer text — **area listing page** (separate fetch, joined on restaurant name) | **context.dev** `/web/extract` | D2 | Core *(proven live)* |
+| Rank: carries-the-dish → reviews → price only where it differs | synthesizer | E → G | Core |
 | **Deep-link hand-off (the wow)** | **ElevenLabs client tool** `open_order_page(url)` | H | **Core** |
-| Live screenshot of the menu on the card | **context.dev** Screenshot API | D4 → K | Core\* *(5-min spike first)* |
-| Brand logo / colour on cards | **context.dev** Brand Intelligence | D4 → K | Stretch |
+| Live screenshot of the menu on the card | **context.dev** `GET /web/screenshot` | D4 → K | Core *(proven live)* |
+| Brand logo / colour on cards | **context.dev** `POST /brand/retrieve` | D4 → K | Stretch *(proven live)* |
 | Authenticity smarts ("real má-là or mild?") | **ElevenLabs** Knowledge Base (RAG) | B | Stretch |
 | Judges try it on their phones | **ElevenLabs** web widget + shareable link | distribution | Stretch |
 | Agent built **as code** — config · prompt · tools · client handlers (delivery/dine-in branch lives in the prompt) | **Devin** + ElevenLabs API (`create_agent`/`update_agent`) | agent build | Core *(best use of Devin — not the no-code workflow builder)* |
 | **Agent phones the restaurant to book a table** | **ElevenLabs** telephony (SIP/Twilio) | J | **V2** |
 
-\* Screenshot + Brand endpoints are documented but not yet hit with our key — spike them like we did `/web/extract` before banking the demo on them.
+**Verified constraints we design around** (live capability run, 2026-08-08 — authority: [VENDOR-CONTRACTS.md §0](VENDOR-CONTRACTS.md)):
 
-**Two verified constraints we design around:** context.dev has **no web-search endpoint** (resolve each app's restaurant URL by scraping its search page or pinning demo URLs — the same trick that worked for products) and **no browser automation** (so a true in-app cart pre-fill is not context.dev's job — it's V2 via partner APIs).
+- **`POST /web/search` EXISTS.** This doc previously said context.dev has "no web-search endpoint" and told us to pin demo URLs — **refuted 2026-08-08; do not reinstate it.** Discovery is **fully live**: any spoken craving is resolved at runtime; no pinned restaurant URLs.
+- **The data is split across two pages per app** (menu + area listing), joined on restaurant name. Fee/ETA are **not** on the menu page.
+- **Talabat menu URLs need `?aid=<areaId>`** or they silently 302 to the homepage and return HTTP 200 with zero prices. The `aid` is an area id, is not transferable between restaurants, and comes from `/web/search`.
+- **Usable apps: Talabat + Deliveroo** (rich); **EatEasy best-effort** (thin coverage). noon Food, Careem, Smiles, Keeta, InstaShop and Zomato yield **no dish prices** — Careem/Smiles/Keeta are app-only. Zomato is a *reviews* source.
+- **Delivery apps give a rating NUMBER, never review TEXT.** Review bodies (the authenticity narrative) come only from Zomato / TripAdvisor.
+- **The final per-user checkout fee/ETA is unobtainable** (computed behind auth). The listing-page fee/ETA is the app's **published estimate** and must be labelled as such.
+- **No browser automation** — a true in-app cart pre-fill is not context.dev's job; it's V2 via partner APIs.
 
 ## 4. What carries over from the shopping engine (~70% — this is why the pivot is cheap)
 
@@ -67,7 +75,7 @@ Everything structural transfers untouched; we only repoint sources and add the h
 
 ## 5. What's new (~30%)
 
-- **Food source adapters** (same `SourceAdapter` base): `DeliveryAppAdapter` (Talabat/Deliveroo/Careem — dish price, fee, ETA, availability), `DiscoveryAdapter` (Google/Zomato — which places serve the dish), `ReviewsAdapter` (authenticity signal).
+- **Food source adapters** (same `SourceAdapter` base): `DeliveryAppAdapter` (Talabat/Deliveroo required + EatEasy best-effort — searches, then joins the **menu** page for dish·price·rating with the **area listing** page for fee·ETA·min·offer) and `RestaurantReviewsAdapter` (Zomato/TripAdvisor review *text* = the authenticity signal). Discovery is no longer a separate adapter — `/web/search` runs inside the delivery adapter. Careem/Smiles/Keeta are app-only and carry no scrapable menu (§3).
 - **The delivery-vs-dine-in branch** (workflow builder or prompt).
 - **The deep-link hand-off** — ElevenLabs **client tool** `open_order_page(url)` registered in `useDalalAgent`, so the *voice agent itself* navigates the browser to the winning app's restaurant page.
 - **context.dev Screenshot + Brand Intelligence** → card assets (proof + polish).
@@ -77,7 +85,7 @@ Everything structural transfers untouched; we only repoint sources and add the h
 
 ## 6. 6-hour scope (core only)
 
-Craving → light interview → research (delivery-app extract on **pinned demo restaurant URLs** + discovery) → cross-app best-value pick → **client-tool deep-link hand-off** → verdict cards with a **live screenshot**. Pin the demo restaurant's URLs on 2 delivery apps (apples-to-apples), pre-warm them, keep the labelled fixture fallback. Everything else in §3 is stretch.
+Craving → light interview → research (**live `/web/search` discovery**, then menu ⋈ listing extract per app, plus review text) → ranked pick (carries the dish → rating → price only if it genuinely differs) → **client-tool deep-link hand-off** → verdict cards with a **live screenshot**. **Do not pin URLs** — discovery is live (locked decision, 2026-08-08); pre-warm the likely demo cravings instead so the on-stage fetch is a warm-cache hit, and keep the labelled fixture fallback. Everything else in §3 is stretch.
 
 ## 7. What V2 looks like
 
