@@ -19,7 +19,8 @@ export default function Home() {
     startSession,
     stopSession,
     sendContextualUpdate,
-    isSpeaking
+    isSpeaking,
+    handedOffTo
   } = useDalalAgent((jobId) => setActiveJobId(jobId));
 
   const { sources, verdict, isResearching, setSources, setVerdict, setIsResearching } = useResearchStream(activeJobId);
@@ -36,7 +37,10 @@ export default function Home() {
     setSources([]);
     setVerdict(null);
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://hack-build-2-production.up.railway.app';
+    const envApi = process.env.NEXT_PUBLIC_API_URL;
+    const apiUrl = envApi && !envApi.includes('localhost') && !envApi.includes('127.0.0.1')
+      ? envApi
+      : 'https://hack-build-2-production.up.railway.app';
     try {
       const res = await fetch(`${apiUrl}/v1/tools/start_research`, {
         method: 'POST',
@@ -197,6 +201,23 @@ export default function Home() {
 
         {/* Right Column: Top Food Verdict Picks Panel (7 Cols) */}
         <div className="lg:col-span-7 bg-slate-950/60 rounded-3xl p-6 border border-slate-800/80 shadow-2xl backdrop-blur-sm min-h-[550px] flex flex-col justify-start">
+          {handedOffTo && (
+            <div className="mb-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between gap-4">
+              <div>
+                <h4 className="text-xs font-bold text-amber-300">🔗 Order Page Hand-Off Active</h4>
+                <p className="text-[11px] text-slate-300">DaleelBites opened your deal page on Deliveroo / Talabat / Noon Food.</p>
+              </div>
+              <a
+                href={handedOffTo}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs shrink-0 transition-colors"
+              >
+                Open Order Page ↗
+              </a>
+            </div>
+          )}
+
           {verdict ? (
             <VerdictCards verdict={verdict} />
           ) : isResearching ? (

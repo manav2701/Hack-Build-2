@@ -4,7 +4,9 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { SourceResult, Verdict } from '../lib/types';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'https://hack-build-2-production.up.railway.app';
+const API = process.env.NEXT_PUBLIC_API_URL && !process.env.NEXT_PUBLIC_API_URL.includes('localhost') && !process.env.NEXT_PUBLIC_API_URL.includes('127.0.0.1')
+  ? process.env.NEXT_PUBLIC_API_URL
+  : 'https://hack-build-2-production.up.railway.app';
 const KEY = process.env.NEXT_PUBLIC_DALAL_KEY || 'dalal-secret-123';
 const POLL_MS = 2000;
 

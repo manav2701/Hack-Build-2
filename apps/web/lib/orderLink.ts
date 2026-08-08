@@ -9,7 +9,7 @@
 
 // Matches DELIVERY_APPS in apps/api/app/adapters/registry.py — the only domains an
 // offer's deep_link can legitimately point at.
-export const ALLOWED_ORDER_HOSTS = ["talabat.com", "deliveroo.ae", "eateasy.ae"] as const;
+export const ALLOWED_ORDER_HOSTS = ["talabat.com", "deliveroo.ae", "deliveroo.com", "eateasy.ae", "noon.com", "food.noon.com", "careem.com"] as const;
 
 export type OrderLinkCheck =
   | { ok: true; url: string }
