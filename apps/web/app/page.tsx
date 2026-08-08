@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { AnimatedAvatar } from '../components/AnimatedAvatar';
 import { ResearchTrail } from '../components/ResearchTrail';
 import { VerdictCards } from '../components/VerdictCards';
 import { TranscriptRail } from '../components/TranscriptRail';
 import { useDalalAgent } from '../hooks/useDalalAgent';
-import { useResearchStream } from '../hooks/useResearchStream';
+import { useResearchStream, useAgentJobDiscovery } from '../hooks/useResearchStream';
 import { Sparkles, ShoppingBag, Radio, Cpu, ShieldCheck } from 'lucide-react';
 import { Category } from '../lib/types';
 
@@ -24,6 +24,12 @@ export default function Home() {
   } = useDalalAgent((jobId) => setActiveJobId(jobId));
 
   const { sources, verdict, isResearching, setSources, setVerdict, setIsResearching } = useResearchStream(activeJobId);
+
+  // Attach the page to whatever job the VOICE AGENT started. Without this the browser
+  // never learns the job_id (the agent calls the backend from ElevenLabs' cloud) and the
+  // UI searches forever while the research has actually finished.
+  const handleAgentJob = useCallback((jobId: string) => setActiveJobId(jobId), []);
+  useAgentJobDiscovery(status === 'connected' || status === 'speaking', handleAgentJob);
 
   const lastAgentMessage = messages.filter((m) => m.sender === 'agent').slice(-1)[0]?.text;
 

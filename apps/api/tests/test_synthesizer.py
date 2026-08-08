@@ -8,8 +8,34 @@ import asyncio
 
 import pytest
 
+from app.adapters.sources.delivery_app import _dish_matches, search_terms
 from app.domain.models import CravingQuery, DishOffer, RestaurantReview, SourceResult
 from app.services.synthesizer import synthesizer
+
+
+# --- craving parsing -------------------------------------------------------
+# Regression: "local sichuan wontons" hung the demo. The filler word "local" returned
+# ZERO search results on both apps, and the matcher required EVERY spoken word to appear
+# on the menu item, so nothing could ever match.
+
+@pytest.mark.parametrize("spoken,listed,expected", [
+    ("local sichuan wontons", "Wontons In Hot And Sour Sauce", True),
+    ("local sichuan wontons", "Fried Wontons With Sesame Sauce", True),
+    ("authentic sichuan wontons", "Chicken And Vegetable Wontons Tossed", True),
+    ("wontons", "Wonton Soup", True),
+    ("local sichuan wontons", "Chicken Xiao Long Bao", False),
+    ("local sichuan wontons", "Beef Burger", False),
+])
+def test_natural_craving_reaches_the_right_menu_item(spoken, listed, expected):
+    assert _dish_matches(spoken, listed) is expected
+
+
+def test_filler_words_are_stripped_from_the_search_query():
+    """Measured: 'local sichuan wontons ...' -> 0 results; without 'local' -> 10.
+    Cuisine words must SURVIVE, they are what identify the restaurant."""
+    q = search_terms("local authentic sichuan wontons")
+    assert "local" not in q and "authentic" not in q
+    assert "sichuan" in q and "wontons" in q
 
 
 def offer(app, dish, price, restaurant="Din Tai Fung", rating=4.5, count=500):

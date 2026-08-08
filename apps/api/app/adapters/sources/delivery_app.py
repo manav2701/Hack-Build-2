@@ -74,12 +74,14 @@ LISTING_INSTRUCTIONS = (
     "minimum order value in AED as a plain number, the star rating, and any promotional offer text."
 )
 
-# How many candidate menu pages to extract per app. Extraction is 10 credits and several
-# seconds a page, so widen only enough to survive one dud candidate.
-MENU_CANDIDATES_PER_APP = 2
-# One listing page covers the whole area, but they are the heaviest render on these sites and
-# intermittently read-timeout, so keep a spare candidate to fall forward to.
-LISTING_CANDIDATES_PER_APP = 2
+# Each /web/extract is 10 credits and 20-40s. With three apps running concurrently, two
+# menu + two listing candidates each blew the adapter's 60s budget and returned nothing at
+# all. One candidate per leg keeps a live craving inside the budget; search already ranks
+# the best page first.
+MENU_CANDIDATES_PER_APP = 1
+LISTING_CANDIDATES_PER_APP = 1
+# Hard cap on the OPTIONAL fee/ETA leg so it can never starve the essential menu leg.
+LISTING_BUDGET_S = 20.0
 
 _STOPWORDS = {"the", "restaurant", "cafe", "uae", "dubai", "abu", "dhabi", "menu", "delivery"}
 
@@ -112,18 +114,70 @@ def _name_matches(a: str, b: str) -> bool:
     return len(shared) >= 2 and len(shared) >= min(len(ta), len(tb)) * 0.6
 
 
+# Opinion/vagueness words a person naturally says. These must be stripped from the SEARCH
+# QUERY as well as the dish match: measured 2026-08-08, "local sichuan wontons ..." returned
+# ZERO search results on both apps, while dropping the single word "local" returned 10.
+_FILLER_WORDS = {
+    "local", "authentic", "real", "proper", "traditional", "genuine", "classic",
+    "best", "good", "great", "nice", "tasty", "amazing", "favourite", "favorite",
+    "some", "any", "fresh", "homemade", "style", "really", "very",
+}
+
+# Cuisine words HELP the search (they identify the restaurant) but must not be required of
+# the menu ITEM — the restaurant is Sichuan while the dish is just "Wontons". So these are
+# stripped for matching only, never from the query.
+_CUISINE_WORDS = {
+    "sichuan", "szechuan", "cantonese", "shanghai", "japanese", "chinese", "thai",
+    "korean", "italian", "indian", "lebanese", "arabic", "asian", "american",
+}
+
+_DISH_QUALIFIERS = _FILLER_WORDS | _CUISINE_WORDS
+
+
+def search_terms(dish: str) -> str:
+    """The craving as a SEARCH query: filler dropped, cuisine kept."""
+    kept = [t for t in _norm(dish).split() if t not in _FILLER_WORDS]
+    return " ".join(kept) or _norm(dish)
+
+
+def _dish_terms(wanted: str) -> Tuple[set, Optional[str]]:
+    """Meaningful dish words plus the head noun (what the user actually wants).
+
+    English puts the head noun last in a dish phrase, so "local sichuan WONTONS" ->
+    head "wontons". Matching on the head is what lets a naturally-spoken craving
+    reach a real menu item.
+    """
+    toks = [t for t in _norm(wanted).split() if len(t) > 2]
+    meaningful = [t for t in toks if t not in _DISH_QUALIFIERS and t not in _STOPWORDS]
+    head = meaningful[-1] if meaningful else (toks[-1] if toks else None)
+    return set(meaningful), head
+
+
+def _token_hit(token: str, listed_tokens: set) -> bool:
+    """Match allowing simple plurals ("wonton" <-> "wontons")."""
+    return token in listed_tokens or f"{token}s" in listed_tokens or token.rstrip("s") in listed_tokens
+
+
 def _dish_matches(wanted: str, listed: str) -> bool:
-    """Tolerant dish match - the user says "wontons", the menu says
-    "Wontons In Hot And Sour Sauce"."""
+    """Tolerant dish match - the user says "local sichuan wontons", the menu says
+    "Wontons In Hot And Sour Sauce".
+
+    Requiring EVERY spoken word to appear was too strict: it returned zero offers for
+    any craving carrying a qualifier or a cuisine, which silently fell back to fixture
+    data. We now require the HEAD noun, or two meaningful words, to land.
+    """
     nw, nl = _norm(wanted), _norm(listed)
     if not nw or not nl:
         return False
     if nw in nl:
         return True
-    wt = _tokens(wanted) or set(nw.split())
-    lt = set(nl.split())
-    # Every meaningful word the user said must appear, allowing simple plurals.
-    return bool(wt) and all(w in lt or f"{w}s" in lt or w.rstrip("s") in lt for w in wt)
+
+    meaningful, head = _dish_terms(wanted)
+    listed_tokens = set(nl.split())
+    if head and _token_hit(head, listed_tokens):
+        return True
+    hits = sum(1 for w in meaningful if _token_hit(w, listed_tokens))
+    return hits >= 2
 
 
 def _num(value) -> Optional[float]:
@@ -229,8 +283,15 @@ class DeliveryAppAdapter(SourceAdapter):
 
     async def _one_app(self, app: DeliveryApp, query: CravingQuery):
         """Menu discovery+extraction and area-listing discovery+extraction, in parallel."""
+        # The MENU leg is essential (no menu, no price); the LISTING leg only adds fee/ETA,
+        # which is frequently absent anyway. Capping the optional leg stops a slow listing
+        # render from consuming the whole adapter budget and losing every offer with it —
+        # which is exactly how a 60s timeout produced a "couldn't find it" verdict while
+        # the menus had already been read.
         menus, listing = await asyncio.gather(
-            self._menus(app, query), self._listing(app, query), return_exceptions=True
+            self._menus(app, query),
+            asyncio.wait_for(self._listing(app, query), timeout=LISTING_BUDGET_S),
+            return_exceptions=True,
         )
         if isinstance(menus, Exception):
             logger.warning("delivery_app: %s menu leg failed: %r", app.key, menus)
@@ -308,8 +369,11 @@ class DeliveryAppAdapter(SourceAdapter):
         return offers, facts, citations
 
     async def _menus(self, app: DeliveryApp, query: CravingQuery) -> List[Tuple[str, dict]]:
+        # Filler words must not reach the query: "local sichuan wontons ..." returned zero
+        # results on both apps, "sichuan wontons ..." returned ten (§0 verification).
         hits = await context_client.search(
-            f"{query.dish} {query.area} delivery menu", num_results=10, include_domains=[app.domain]
+            f"{search_terms(query.dish)} {query.area} delivery menu",
+            num_results=10, include_domains=[app.domain],
         )
         urls = [h["url"] for h in hits if _is_candidate(h.get("url") or "", app.menu_marker, app)]
         # Talabat's ?aid=<areaId> is an AREA id, arrives attached from search, and is NOT

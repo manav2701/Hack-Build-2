@@ -65,6 +65,16 @@ async def research_status(
         teaser=status_data.get("teaser", "Researching live market...")
     )
 
+# The browser cannot learn the job_id any other way: the agent calls start_research from
+# ElevenLabs' cloud, so that response never reaches the page. Without this the UI has
+# nothing to poll and spins forever while the research actually completes server-side.
+@router.get("/latest_job")
+async def latest_job(x_dalal_key: str = Header(None, alias="X-Dalal-Key")):
+    verify_secret(x_dalal_key)
+    job = await db.get_latest_job()
+    return job or {"job_id": None, "status": "idle"}
+
+
 async def _verdict_payload(job_id: str) -> Dict[str, Any]:
     verdict = await db.get_verdict(job_id)
     if not verdict:
