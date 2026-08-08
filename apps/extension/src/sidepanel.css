@@ -1,5 +1,6 @@
-/* Raw Form, at popup scale. Same tokens as the web app; no web fonts, because a popup
-   that waits on a font host feels broken — the system stack carries the same shapes. */
+/* Raw Form, at side-panel scale. Same tokens as the web app; no web fonts, because a
+   panel that waits on a font host feels broken — the system stack carries the same
+   shapes, and the headline sizes are tuned for the Impact fallback. */
 
 :root {
   --base: #e4e2dd;
@@ -19,10 +20,8 @@
 }
 
 body {
-  width: 380px;
-  min-height: 220px;
-  max-height: 580px;
-  overflow-y: auto;
+  min-width: 300px;
+  min-height: 100vh;
   overflow-x: hidden;
   background: var(--base);
   color: var(--ink);
@@ -163,6 +162,7 @@ input:focus {
   font-weight: 700;
   letter-spacing: -0.05em;
   line-height: 1.15;
+  padding-top: 2px;
   text-transform: uppercase;
 }
 .wordmark span {
@@ -505,4 +505,111 @@ section {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+
+/* ---------------------------------------------------------------- the agent */
+
+#agent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 4px;
+}
+
+.avatar {
+  border: 0;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  line-height: 0;
+  transition: transform 0.3s var(--ease);
+}
+.avatar:hover {
+  transform: scale(1.03);
+}
+/* A hard ring, not a glow — the brutalist grammar has no soft shadows. */
+.avatar.is-live {
+  position: relative;
+}
+.avatar.is-live::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 2px solid rgba(219, 74, 43, 0.5);
+  border-radius: 50%;
+  animation: ripple 2s infinite;
+  pointer-events: none;
+}
+@keyframes ripple {
+  0% { transform: scale(0.85); opacity: 1; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+.avatar.is-speaking svg {
+  animation: bob 2.2s ease-in-out infinite;
+}
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.status {
+  margin-top: 10px;
+  text-align: center;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  background: var(--ink);
+  color: var(--base);
+}
+.pill.live {
+  background: var(--red);
+  color: #fff;
+}
+.pill.live::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fff;
+  animation: blip 1.2s ease-in-out infinite;
+}
+@keyframes blip {
+  50% { opacity: 0.25; }
+}
+
+/* ---------------------------------------------------------------- transcript */
+
+.transcript {
+  width: 100%;
+  max-height: 190px;
+  overflow-y: auto;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(30, 30, 30, 0.15);
+  display: grid;
+  gap: 12px;
+}
+.msg-text {
+  margin-top: 3px;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.msg.user .msg-text {
+  color: var(--mute);
+}
+.msg.agent .label {
+  color: var(--red);
+}
+.msg.agent .msg-text {
+  border-left: 2px solid var(--red);
+  padding-left: 10px;
+  color: var(--ink);
 }

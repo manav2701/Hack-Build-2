@@ -1,8 +1,8 @@
 /**
- * Backend calls, shared by the popup and the service worker.
+ * Backend calls, shared by the side panel and the service worker.
  *
  * The session token lives in `chrome.storage.local` rather than `localStorage`: the
- * popup is torn down every time it closes and the service worker is evicted when idle,
+ * panel is torn down every time it closes and the service worker is evicted when idle,
  * so neither has a persistent JS context to hold it in. `chrome.storage` is also the
  * only store both contexts can see.
  */

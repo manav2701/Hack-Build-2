@@ -12,8 +12,18 @@ export const API_BASE = 'https://hack-build-2-production.up.railway.app';
 /** Shared secret for the /v1/tools/* surface. Not user auth — that is a bearer token. */
 export const DALAL_KEY = 'dalal-secret-123';
 
-/** Where the full experience lives; the popup links out to it. */
+/** Where the full experience lives; the side panel links out to it. */
 export const WEB_APP = 'https://hack-build-2.vercel.app';
+
+/**
+ * The ElevenLabs voice agent.
+ *
+ * A public identifier, not a secret — the web app already ships it to every browser as
+ * NEXT_PUBLIC_ELEVENLABS_AGENT_ID, and the agent is public, so `startSession` needs no
+ * signed URL. If you make the agent private, this has to become a token minted by the
+ * backend instead.
+ */
+export const AGENT_ID = 'agent_1401kzetahref6nb0pvsc85ennaf';
 
 /** chrome.storage.local keys, named in one place so nothing drifts. */
 export const STORAGE = {

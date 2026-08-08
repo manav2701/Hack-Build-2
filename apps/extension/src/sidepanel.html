@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>DaleelBites</title>
-    <link rel="stylesheet" href="popup.css" />
+    <link rel="stylesheet" href="sidepanel.css" />
   </head>
   <body>
     <header class="bar">
@@ -15,27 +15,31 @@
       <button id="account-btn" class="account" type="button" hidden></button>
     </header>
 
-    <!-- Craving input -->
-    <section id="search-view">
-      <form id="craving-form" autocomplete="off">
-        <label class="label" for="craving">What are you craving?</label>
-        <div class="row">
-          <input id="craving" type="text" placeholder="Sichuan wontons…" required />
-          <button class="btn" type="submit"><span>Go</span></button>
-        </div>
-        <label class="label area-label" for="area">Area</label>
-        <input id="area" type="text" value="Dubai" />
-      </form>
+    <!-- The agent -->
+    <section id="agent">
+      <div id="avatar-slot"></div>
+      <p class="status"><span id="status-pill" class="pill">Tap to talk</span></p>
+      <p class="error" id="mic-error" hidden></p>
 
+      <div id="transcript" class="transcript" hidden></div>
+    </section>
+
+    <!-- Typed craving -->
+    <section id="search">
+      <label class="label" for="craving">Or type a craving</label>
+      <div class="row">
+        <input id="craving" type="text" placeholder="Sichuan wontons…" autocomplete="off" />
+        <button class="btn" id="craving-go" type="button"><span>Go</span></button>
+      </div>
       <div class="chips" id="chips"></div>
       <p class="error" id="search-error" hidden></p>
     </section>
 
-    <!-- Result -->
-    <section id="result-view" hidden>
+    <!-- Verdict -->
+    <section id="result">
       <div class="result-head">
-        <p class="label" id="result-label">The verdict</p>
-        <button class="linkbtn" id="new-search" type="button">New craving</button>
+        <p class="label" id="result-label">Live result</p>
+        <button class="linkbtn" id="new-search" type="button" hidden>New craving</button>
       </div>
       <div id="result-body"></div>
     </section>
@@ -59,9 +63,9 @@
 
     <footer class="foot">
       <button class="linkbtn" id="signin-link" type="button">Sign in to save cravings</button>
-      <a id="webapp-link" href="#" target="_blank" rel="noopener noreferrer">Open web app ↗</a>
+      <a id="webapp-link" href="#" target="_blank" rel="noopener noreferrer">Web app ↗</a>
     </footer>
 
-    <script type="module" src="popup.js"></script>
+    <script type="module" src="../dist/sidepanel.js"></script>
   </body>
 </html>

@@ -9,7 +9,8 @@
  *
  *  * **The page is hostile input.** Everything read off it (dish names, prices) is
  *    treated as text, never as markup, and it only ever leaves as a search string.
- *  * **A content script cannot open the popup.** Chrome has no API for that. So the
+ *  * **A content script cannot open the side panel by itself.** Opening it needs a
+ *    user gesture in an extension surface, which a page click is not. So the
  *    panel renders the verdict inline, and the service worker handles the tab-opening
  *    on click, re-validating the URL before it does.
  *
@@ -335,7 +336,7 @@
     pollTimer = setInterval(async () => {
       if (++polls > MAX_POLLS) {
         stopPolling();
-        renderStatus('Still', 'running.', 'This is taking longer than usual — open the DaleelBites popup to check on it.');
+        renderStatus('Still', 'running.', 'This is taking longer than usual — open the DaleelBites side panel to check on it.');
         return;
       }
       let result;

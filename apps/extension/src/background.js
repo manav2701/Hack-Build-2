@@ -1,14 +1,14 @@
 /**
- * Service worker — the part that keeps working after the popup closes.
+ * Service worker — the part that keeps working after the side panel closes.
  *
  * An MV3 service worker is evicted whenever it goes idle, so nothing here may rely on
  * a variable surviving between events. Every piece of state that must outlive a call
  * lives in `chrome.storage.local`, and the poll loop is driven by `chrome.alarms`,
  * which wakes the worker back up.
  *
- * Division of labour with the popup: while the popup is open it polls at its own
+ * Division of labour with the side panel: while the panel is open it polls at its own
  * (fast) cadence because the user is watching. This alarm is the backstop for a job
- * started from a content script or left running when the popup closed — it finishes
+ * started from a content script or left running when the panel closed — it finishes
  * the job, badges the icon and fires a notification.
  */
 
@@ -17,7 +17,7 @@ import { STORAGE, isSafeOrderUrl } from './config.js';
 
 const ALARM = 'daleelbites-poll';
 // chrome.alarms clamps periods below one minute in a packed extension, so this is the
-// real floor. Research takes ~30-60s; the popup covers the fast path when it is open.
+// real floor. Research takes ~30-60s; the side panel covers the fast path while open.
 const POLL_MINUTES = 1;
 // A job that has not finished in this long is not going to. Stop polling rather than
 // waking the worker forever.
@@ -103,7 +103,7 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 /**
- * Message bus for the popup and the content scripts.
+ * Message bus for the side panel and the content scripts.
  *
  * `sendResponse` is called asynchronously, so every handled branch returns `true` to
  * keep the message channel open — without it Chrome closes the port and the caller's
@@ -180,6 +180,21 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   return false;
 });
+
+/**
+ * Toolbar click opens the SIDE PANEL, not a popup.
+ *
+ * The manifest declares no `default_popup` precisely so this behaviour takes over: a
+ * popup closes the moment it loses focus, which makes the microphone permission prompt
+ * unwinnable (the prompt itself takes focus) and would tear down a live voice session
+ * on the first stray click. The side panel persists across clicks and navigation.
+ *
+ * Set on every worker start, not just on install — the worker is evicted when idle, and
+ * an install-only call would be lost the first time Chrome restarted the extension.
+ */
+chrome.sidePanel
+  .setPanelBehavior({ openPanelOnActionClick: true })
+  .catch((err) => console.warn('sidePanel.setPanelBehavior failed:', err));
 
 chrome.runtime.onInstalled.addListener(() => {
   setBadge('');

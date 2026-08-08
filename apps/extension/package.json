@@ -1,0 +1,16 @@
+{
+  "name": "daleelbites-extension",
+  "version": "1.1.0",
+  "private": true,
+  "description": "DaleelBites MV3 extension — voice broker side panel, popup-free.",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch"
+  },
+  "dependencies": {
+    "@elevenlabs/client": "^1.17.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
