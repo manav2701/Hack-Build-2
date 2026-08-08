@@ -4,7 +4,8 @@ from pydantic import BaseModel, Field
 
 class ProductQuery(BaseModel):
     session_id: str = "demo-session"
-    category: Literal["laptop", "vacuum", "headphones", "smartwatch"] = "laptop"
+    category: str = Field(default="food", description="Category or dish craving e.g. food, laptop, vacuum, headphones, smartwatch")
+    dish: Optional[str] = Field(default="", description="Specific dish or product name")
     budget_aed: float = Field(default=5000.0, description="Target budget in AED")
     must_haves: List[str] = Field(default_factory=list, description="User must-have features")
     deal_breakers: List[str] = Field(default_factory=list, description="User deal breakers")
@@ -13,7 +14,7 @@ class ProductQuery(BaseModel):
 class Offer(BaseModel):
     title: str
     price_aed: float
-    retailer: Literal["noon", "amazon_ae", "sharaf_dg", "other"]
+    retailer: str
     url: str
     seller: Optional[str] = None                                      # e.g. "Viola-UAE", "Amazon.ae"
     seller_type: Literal["official", "marketplace_3p", "unknown"] = "unknown"  # drives the warranty catch
