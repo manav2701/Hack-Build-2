@@ -109,8 +109,11 @@ def test_fastapi_tool_endpoints():
         json={"job_id": job_id},
         headers={"X-Dalal-Key": "dalal-secret-123"}
     )
-    # Could be 200 if completed or 404 if still running
-    assert verdict_resp.status_code in [200, 404]
+    # NEVER 404. Not-ready is the normal case on every poll before research finishes, and
+    # a 404 injected mid-conversation breaks the voice agent's turn, so the endpoint
+    # always answers 200 and the caller branches on `status` (CONTRACTS.md section 2).
+    assert verdict_resp.status_code == 200
+    assert verdict_resp.json().get("status") in ("running", "done")
 
 
 # Test 5: Synthesizer fallback and word count compliance
@@ -119,10 +122,17 @@ def test_synthesizer_constraints():
         query = ProductQuery(category="laptop", budget_aed=5000.0)
         verdict = await synthesizer.build_verdict(query, [])
 
+        # With ZERO sources there is nothing to recommend. Asserting a runner_up with
+        # exactly 3 reasons and 2 watch-outs here is only satisfiable by INVENTING them,
+        # which is what the old hardcoded synthesizer did. The grounded contract is the
+        # opposite: no source -> no pick, and say so honestly (CONTRACTS.md section 4).
         assert verdict.pick is not None
-        assert verdict.runner_up is not None
-        assert len(verdict.pick.why) == 3
-        assert len(verdict.pick.watch_outs) == 2
+        assert verdict.pick.price_aed == 0.0, "a priceless pick must not carry a price"
+        assert verdict.runner_up is None, "must not invent a runner-up from no data"
+        assert verdict.confidence == "low"
+        assert verdict.why == [] if hasattr(verdict, "why") else True
+        assert not verdict.sources_used
+
         # Ensure spoken summary is strictly within ElevenLabs voice limits (<= 60 words)
         words = verdict.spoken_summary.split()
         assert len(words) <= 60, f"Spoken summary too long: {len(words)} words"

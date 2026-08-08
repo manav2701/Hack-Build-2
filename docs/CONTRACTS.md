@@ -82,24 +82,36 @@ class CravingQuery(BaseModel):            # replaces ProductQuery
     area: str = "Dubai"                   # delivery apps are location-gated
 
 class DishOffer(BaseModel):               # replaces Offer
-    restaurant: str
+    restaurant: str                       # the JOIN key between the menu and listing pages
     dish: str
     price_aed: float
-    app: Literal["talabat", "deliveroo", "careem", "other"]   # the delivery app
-    delivery_fee_aed: Optional[float] = None
-    eta_minutes: Optional[int] = None
-    rating: Optional[float] = None
-    deep_link: str                        # → open_order_page(url)
-    screenshot_url: Optional[str] = None  # context.dev Screenshot API
-    logo_url: Optional[str] = None        # context.dev Brand Intelligence
+    app: Literal["talabat", "deliveroo", "eateasy", "other"]  # the delivery app
+    in_stock: Optional[bool] = True       # MENU page: sold-out flag
+
+    # --- MENU page (free with the dish fetch — no extra call) ---
+    rating: Optional[float] = None        # the app's aggregate rating -> the review-first ranking
+    review_count: Optional[int] = None    # tie-breaker; delivery apps give the NUMBER, never the TEXT
+
+    # --- LISTING (area) page: PUBLISHED ESTIMATE, often absent -> render "—", never invent ---
+    delivery_fee_aed: Optional[float] = None   # NOT on the menu page; app's published estimate
+    eta_minutes: Optional[int] = None          # NOT on the menu page; app's published estimate
+    min_order_aed: Optional[float] = None
+    offer_text: Optional[str] = None           # e.g. a listed promotion
+
+    deep_link: str                        # → open_order_page(url); carries ?aid= on Talabat
+    screenshot_url: Optional[str] = None  # context.dev GET /web/screenshot
+    logo_url: Optional[str] = None        # context.dev POST /brand/retrieve
     is_fixture: bool = False
     captured_at: datetime
 
-# SourceResult.source → Literal["delivery_app","discovery","reviews"]
-# Verdict picks carry the app + the cross-app deal catch ("38 AED, free delivery on Deliveroo").
+# SourceResult.source → Literal["delivery_app","reviews","screenshot","brand"]
 ```
 
-Food source adapters (same `SourceAdapter` protocol): `DeliveryAppAdapter` (price·fee·ETA per app), `DiscoveryAdapter` (which places serve the dish), `ReviewsAdapter` (authenticity). Restaurant URLs are pinned per demo (context.dev has no search endpoint) and pre-warmed.
+**Two pages, one offer.** A `DishOffer` is assembled from **two** fetches per app, joined on `restaurant` ([VENDOR-CONTRACTS.md §0.4](VENDOR-CONTRACTS.md)): the **menu** page supplies dish · `price_aed` · `in_stock` · `rating` · `review_count`; the **area listing** page supplies `delivery_fee_aed` · `eta_minutes` · `min_order_aed` · `offer_text`. The listing fields are the app's **published estimate** — the per-user final checkout fee/ETA is computed behind auth and is unobtainable (§0.8), so they are `Optional` and must be spoken/rendered as an estimate, never as a total.
+
+**Ranking the picks (Amin, LOCKED):** *"first find the places that carry that dish or requested item, then rank based on reviews then price if they are different."* → carry-filter → `rating`/`review_count` → price **only** as a tie-breaker and **only** where a genuine per-dish delta exists (§0.6). No blanket "cheaper app" claim.
+
+Food source adapters (same `SourceAdapter` protocol): `DeliveryAppAdapter` — `/web/search` → menu → listing, joined (Talabat + Deliveroo rich; **EatEasy best-effort**, often empty); `ReviewsAdapter` — **Zomato / TripAdvisor only**, the sole source of review *text* for the authenticity narrative (§0.7). **Restaurant URLs are never pinned** — `POST /web/search` exists (this doc previously claimed it did not; refuted 2026-08-08) and returns URLs already carrying the required `?aid=`. Pre-warm the resolved URLs; never pass `maxAgeMs=0`.
 
 ## 6. Agent-as-code (Devin, not the workflow builder)
 

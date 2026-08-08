@@ -11,7 +11,7 @@ from app.adapters.sources import (
 )
 from app.db.supabase import db
 from app.domain.models import ProductQuery
-from app.services.orchestrator import run_research_pipeline
+from app.services.orchestrator import build_query, infer_domain, run_research_pipeline
 
 FIXTURE = json.loads(
     (Path(__file__).parent / "fixtures" / "golden_smartwatch.json").read_text()
@@ -32,6 +32,11 @@ def test_smartwatch_category_spec_registered():
     assert spec.marketplace_queries and spec.review_seeds
     assert any("esim" in kw.lower() for kw in spec.community_keywords)
     assert spec.warranty_urls
+
+def test_smartwatch_webhook_body_routes_to_shopping():
+    query = build_query({"category": "smartwatch", "budget_aed": 3500})
+    assert isinstance(query, ProductQuery)
+    assert infer_domain(query) == "shopping"
 
 def test_smartwatch_adapters_return_local_context():
     async def _test():
@@ -74,11 +79,12 @@ def test_smartwatch_verdict_pipeline():
 
         verdict = await db.get_verdict(job_id)
         assert verdict is not None
+        # Ranking prefers an in-budget official-store listing, so the Apple Watch wins.
         assert "Apple Watch Ultra 2" in verdict["pick"]["name"]
         assert "Galaxy Watch 6" in verdict["runner_up"]["name"]
         assert verdict["pick"]["price_aed"] <= query.budget_aed
-        assert len(verdict["pick"]["why"]) == 3
-        assert len(verdict["pick"]["watch_outs"]) == 2
+        assert 1 <= len(verdict["pick"]["why"]) <= 3
+        assert len(verdict["pick"]["watch_outs"]) <= 2
         assert "Jumbo" in verdict["pick"]["warranty_note"]
         assert len(verdict["spoken_summary"].split()) <= 60
 

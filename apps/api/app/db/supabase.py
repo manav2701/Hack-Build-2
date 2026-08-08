@@ -73,4 +73,19 @@ class SupabaseService:
     async def get_verdict(self, job_id: str) -> Optional[dict]:
         return _in_memory_verdicts.get(job_id)
 
+    async def get_latest_job(self) -> Optional[dict]:
+        """The most recently created job, for the browser to attach to.
+
+        The voice agent calls start_research from ElevenLabs' cloud, so the browser
+        never sees the job_id in a response — without this it has nothing to poll and
+        the UI spins forever. Newest-wins is fine for a single-user demo; a
+        multi-user build would scope this by session_id.
+        """
+        if not _in_memory_jobs:
+            return None
+        job_id = next(reversed(_in_memory_jobs))
+        job = _in_memory_jobs[job_id]
+        return {"job_id": job_id, "status": job.get("status", "running"),
+                "query": job.get("query", {})}
+
 db = SupabaseService()

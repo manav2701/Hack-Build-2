@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal, Optional, List
+from typing import Literal, Optional, List, Union
 from pydantic import BaseModel, Field
 
 class ProductQuery(BaseModel):
@@ -23,11 +23,82 @@ class Offer(BaseModel):
     is_fixture: bool = False                                          # True → sample data, not a live fetch
     captured_at: datetime = Field(default_factory=datetime.utcnow)
 
+# ---------------------------------------------------------------------------
+# Food domain (the pivot). Additive: the shopping shapes above still drive the
+# proven marketplace path. Shapes follow the LIVE capability verification in
+# docs/VENDOR-CONTRACTS.md §0 — notably that a delivery app splits its data across
+# TWO pages, so a DishOffer is a JOIN of the menu page and the area listing page.
+# ---------------------------------------------------------------------------
+
+class CravingQuery(BaseModel):
+    """What the voice agent collects before research starts."""
+    session_id: str = "demo-session"
+    dish: str = "wontons"                                             # "authentic Sichuan wontons"
+    mode: Literal["delivery", "dine_in"] = "delivery"
+    refiners: List[str] = Field(default_factory=list)                 # spice / authenticity / budget
+    area: str = "Downtown Dubai"                                      # delivery apps are location-gated
+
+
+class DishOffer(BaseModel):
+    """One dish, on one app, at one restaurant.
+
+    Fields are grouped by WHICH page they come from, because that governs whether
+    they can be absent — a menu-page fetch that succeeds while the listing-page
+    fetch fails still yields a usable (price-grounded) offer.
+    """
+    # --- from the MENU page (required: no price, no offer) ---
+    restaurant: str
+    address: Optional[str] = None                                     # as printed on the page; often absent
+    dish: str
+    price_aed: float
+    app: Literal["talabat", "deliveroo", "eateasy", "other"]
+    deep_link: str                                                    # → open_order_page(url)
+    sold_out: bool = False
+    rating: Optional[float] = None                                    # aggregate; free with the menu fetch
+    review_count: Optional[int] = None
+
+    # --- from the AREA LISTING page (optional: absent when that fetch fails) ---
+    # These are the app's PUBLISHED ESTIMATE, not the user's checkout total. The real
+    # per-user fee/ETA is computed behind auth and is unobtainable (§0.8).
+    delivery_fee_aed: Optional[float] = None
+    eta_text: Optional[str] = None                                    # "Within 32 mins" / "25 min", as shown
+    minimum_order_aed: Optional[float] = None
+    offer_text: Optional[str] = None                                  # "Spend AED 50, get 30% off"
+
+    # --- presentation (context.dev screenshot / brand endpoints) ---
+    screenshot_url: Optional[str] = None
+    logo_url: Optional[str] = None
+
+    is_fixture: bool = False
+    captured_at: datetime = Field(default_factory=datetime.utcnow)
+
+    @property
+    def estimates_are_published(self) -> bool:
+        """True when any app-published estimate is attached and must be labelled as such."""
+        return self.delivery_fee_aed is not None or self.eta_text is not None
+
+
+class RestaurantReview(BaseModel):
+    """A real customer review body. Only Zomato/TripAdvisor return these — the
+    delivery apps expose an aggregate rating number and no text at all (§0.7)."""
+    source: Literal["zomato", "tripadvisor", "other"]
+    author: Optional[str] = None
+    rating: Optional[float] = None
+    text: str
+    date: Optional[str] = None
+    url: str
+
+
 class SourceResult(BaseModel):
-    source: Literal["marketplace", "reviews", "community", "warranty"]
+    source: Literal[
+        "marketplace", "reviews", "community", "warranty",            # shopping
+        "delivery_app", "discovery", "restaurant_reviews",            # food
+    ]
     status: Literal["ok", "partial", "failed"]
     facts: List[str] = Field(default_factory=list)
     offers: List[Offer] = Field(default_factory=list)
+    dish_offers: List[DishOffer] = Field(default_factory=list)
+    reviews: List[RestaurantReview] = Field(default_factory=list)
     citations: List[str] = Field(default_factory=list)
     is_fixture: bool = False                                          # True when this source used fixture data
     latency_ms: int = 0
@@ -42,9 +113,33 @@ class Recommendation(BaseModel):
     watch_outs: List[str] = Field(description="Exactly 2 watch-outs/cons", max_length=2)
     warranty_note: Optional[str] = None
 
+class DishRecommendation(BaseModel):
+    """The food-domain pick. Mirrors Recommendation so one Verdict serves both
+    domains (no parallel verdict type), but carries what a food decision needs."""
+    name: str                                                         # the dish as listed
+    restaurant: str
+    address: Optional[str] = None                                     # where to actually go / order from
+    price_aed: float
+    app: str                                                          # talabat / deliveroo / eateasy
+    url: str                                                          # deep link to the order page
+    why: List[str] = Field(description="Up to 3 grounded reasons", max_length=3)
+    watch_outs: List[str] = Field(default_factory=list, max_length=2)
+    rating: Optional[float] = None
+    review_count: Optional[int] = None
+    authenticity_note: Optional[str] = None                           # grounded in Zomato/TripAdvisor review text
+    # The single best real review for this restaurant, structured so the UI can render
+    # author/stars/source/link rather than parsing the prose in authenticity_note. None
+    # when no review body could be attributed to this place — never a synthesised review.
+    top_review: Optional["RestaurantReview"] = None
+    # App-published estimates, never the user's checkout total (§0.8).
+    delivery_estimate: Optional[str] = None                           # "AED 9.00 delivery, within 40 mins (as listed)"
+    screenshot_url: Optional[str] = None
+    logo_url: Optional[str] = None
+
+
 class Verdict(BaseModel):
-    pick: Recommendation
-    runner_up: Recommendation
+    pick: Union[DishRecommendation, Recommendation]
+    runner_up: Optional[Union[DishRecommendation, Recommendation]] = None
     price_note: str
     confidence: Literal["high", "medium", "low"]
     sources_used: List[str]
