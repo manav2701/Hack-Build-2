@@ -1,87 +1,35 @@
-# Dalal (دلال) — Voice-First UAE Shopping Agent
+# Dalal (دلال) — Voice-First UAE Food Broker
 
-> **Dubai AI Hub Builder Lab Hackathon Project**  
-> *Dalal* (Gulf Arabic for a broker/middleman who haggles on your behalf) is an asynchronous voice-first agent that interviews you on what you actually need, scrapes the live UAE market in parallel (Noon, Amazon.ae, Reddit r/dubai, Arabic warranty blogs), and speaks a 2-product verdict with realtime visual progress.
+> **Dubai AI Hub Builder Lab.** Speak a craving; Dalal finds the best place, compares the dish live across delivery apps, and **takes you to the order**. Advice is commoditized (ChatGPT can recommend a restaurant) — the moat is the **action**: craving → ready to order.
 
----
+**Product & flow (master doc):** [docs/FOOD-FLOW.md](docs/FOOD-FLOW.md) · **Spec:** [docs/TECH-SPEC.md](docs/TECH-SPEC.md) · **Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · **Contracts:** [docs/CONTRACTS.md](docs/CONTRACTS.md) · **Verified vendor APIs:** [docs/VENDOR-CONTRACTS.md](docs/VENDOR-CONTRACTS.md)
 
-## 🚀 Key Features
+## What it does
 
-- 🎙️ **Voice-First WebRTC Interface**: Powered by ElevenLabs Conversational AI with zero delay turn-taking and barge-in.
-- ⚡ **Decoupled Realtime Pipeline**: Voice thread and research thread run independently via Supabase Realtime pushed directly to the UI and ElevenLabs agent via `sendContextualUpdate`.
-- 🔎 **4 Parallel Live Scrapes (context.dev)**:
-  - **Marketplace**: Live price comparison across Noon.com & Amazon.ae.
-  - **Reviews**: Tech reviews & spec extraction.
-  - **Community**: r/dubai local buyer complaints & seller reputation check.
-  - **Warranty**: UAE regional warranty validity & official distribution checks.
-- 🎯 **2-Product Verdict**: Sharp recommendation of **Top Pick** and **Runner-Up** with AED pricing, local watch-outs, and direct links.
-- 🛡️ **Graceful Partial Fallback**: If an adapter times out, a high-quality partial verdict still ships with adjusted confidence rating.
+Say *"I'm craving authentic Sichuan wontons"* → a light voice interview (delivery or dine-in? spice?) → parallel **context.dev** research across delivery apps (Talabat/Deliveroo/Careem), discovery and reviews *while the agent keeps talking* → a two-option verdict (best place + best-value app) with live prices and a menu screenshot → **the agent deep-links you straight to the order page** (ElevenLabs client tool). The latency is the conversation, not a spinner.
 
----
+## Status — what's built so far
 
-## 🛠️ Architecture Overview
+- ✅ **Proven engine** (validated on the *shopping* domain first): ElevenLabs voice agent + **live context.dev structured extraction** (Noon/Amazon, Cloudflare anti-bot bypassed) + async orchestration + grounded verdict + labelled-fixture fallback. The marketplace adapter pulls **real live prices** — verified end-to-end.
+- 🔜 **Food build:** repoint the sources to delivery apps, add the **client-tool deep-link hand-off** + screenshot cards. **~70% of the engine carries over** — the domain is a *variable* (the seam this was built around). See [FOOD-FLOW §4](docs/FOOD-FLOW.md).
 
-```
-[ ElevenLabs WebRTC Voice Session ] <---(sendContextualUpdate)---+
-                 |                                               |
-         start_research (Webhook <500ms)                         |
-                 v                                               |
-    [ FastAPI Backend (Railway) ]                                 |
-                 |                                               |
-       asyncio.gather (4 sources)                                |
-                 |                                               |
-                 v                                               |
-        [ Supabase Realtime ] ===(Websocket Push)===> [ Next.js 15 Frontend ]
-```
+## Stack
 
----
+Voice: **ElevenLabs** Agents (WebRTC, barge-in, client/server tools, RAG). Live data: **context.dev** (scrape · extract · screenshot · brand). Backend: **FastAPI** (`apps/api`). Frontend: **Next.js 15** (`apps/web`). Realtime: **Supabase** (+ a poll backstop). Built with **Devin** — see [docs/AGENTIC_ENGINEERING.md](docs/AGENTIC_ENGINEERING.md).
 
-## ⚡ Quickstart (Local Dev)
+## Run
 
-### 1. Environment Setup
-
-Copy `.env.example` in both `apps/api` and `apps/web`:
-
+**Backend** (`apps/api`):
 ```bash
-# Backend (apps/api/.env)
-CONTEXT_DEV_API_KEY=your_key
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your_service_role_or_anon_key
-DALAL_SECRET_KEY=your_shared_webhook_secret
-LLM_API_KEY=your_llm_key
-
-# Frontend (apps/web/.env.local)
-NEXT_PUBLIC_ELEVENLABS_AGENT_ID=your_agent_id
-ELEVENLABS_API_KEY=your_elevenlabs_key
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
+python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # (Scripts→bin on macOS/Linux)
+# set CONTEXT_DEV_API_KEY in apps/api/.env
+.venv/Scripts/uvicorn app.main:app --reload --port 8000
 ```
-
-### 2. Run Backend (FastAPI)
-
+**Frontend** (`apps/web`):
 ```bash
-cd apps/api
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-### 3. Run Frontend (Next.js)
-
-```bash
-cd apps/web
 npm install
+# set ELEVENLABS_API_KEY + NEXT_PUBLIC_ELEVENLABS_AGENT_ID + Supabase keys in apps/web/.env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
-
----
-
-## 🧪 Testing
-
-Run backend orchestrator tests & fixture fallback:
-
-```bash
-cd apps/api
-pytest
-```
+Live data requires a real `CONTEXT_DEV_API_KEY`; without one the adapters return **clearly-labelled** sample data (`is_fixture=true`) — the demo never silently fakes live prices.
