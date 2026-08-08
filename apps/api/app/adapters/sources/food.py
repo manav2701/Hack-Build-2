@@ -40,6 +40,8 @@ FOOD_EXTRACT_INSTRUCTIONS = (
 
 from app.adapters.registry import get_category_spec
 
+import asyncio
+
 class FoodDeliveryAdapter(SourceAdapter):
     name = "food_delivery"
 
@@ -49,40 +51,54 @@ class FoodDeliveryAdapter(SourceAdapter):
         product_urls = spec.product_urls or {"noon_food": "https://food.noon.com/uae-en/outlet/CGKFTM0QJ1/"}
 
         if context_client.is_live():
+            async def extract_one(app_name: str, url: str):
+                try:
+                    data = await self._live_extract(url)
+                    if not data:
+                        return None, None, None
+                    restaurant = data.get("restaurant_name", "Cigkoftem")
+                    items = data.get("menu_items", [])
+                    offers_list = data.get("offers", [])
+                    eta = data.get("eta", "20-30 mins")
+                    fee = data.get("delivery_fee_aed", 0)
+
+                    fact = f"[context.dev LIVE - {app_name.upper()}] Outlet: {restaurant} ({data.get('cuisines', 'Turkish')}) — {data.get('rating', 4.7)}★ | ETA: {eta} | Fee: AED {fee}"
+                    if offers_list:
+                        fact += f" | Deals: {', '.join(offers_list[:2])}"
+
+                    app_offers = []
+                    for item in items[:4]:
+                        app_offers.append(
+                            Offer(
+                                title=f"{restaurant} ({app_name.upper()}) - {item.get('name')}",
+                                price_aed=float(item.get("price_aed", 0)),
+                                retailer=app_name,
+                                url=url,
+                                seller=restaurant,
+                                seller_type="official",
+                                warranty=item.get("description", ""),
+                                is_fixture=False
+                            )
+                        )
+                    return fact, app_offers, url
+                except Exception as e:
+                    logger.warning(f"Food extraction error for {app_name}: {e}")
+                    return None, None, None
+
+            results = await asyncio.gather(*[extract_one(app, u) for app, u in product_urls.items()], return_exceptions=True)
+
             offers: List[Offer] = []
             facts: List[str] = []
             citations: List[str] = []
 
-            for app_name, url in product_urls.items():
-                try:
-                    data = await self._live_extract(url)
-                    if data:
-                        restaurant = data.get("restaurant_name", "Cigkoftem")
-                        items = data.get("menu_items", [])
-                        offers_list = data.get("offers", [])
-                        eta = data.get("eta", "20-30 mins")
-                        fee = data.get("delivery_fee_aed", 0)
-
-                        facts.append(f"[context.dev LIVE - {app_name.upper()}] Outlet: {restaurant} ({data.get('cuisines', 'Turkish')}) — {data.get('rating', 4.7)}★ | ETA: {eta} | Fee: AED {fee}")
-                        if offers_list:
-                            facts.append(f"[context.dev LIVE - {app_name.upper()}] Active Deals: {', '.join(offers_list[:2])}")
+            for r in results:
+                if isinstance(r, tuple) and r[0]:
+                    fact, app_offers, url = r
+                    facts.append(fact)
+                    if app_offers:
+                        offers.extend(app_offers)
+                    if url:
                         citations.append(url)
-
-                        for item in items[:4]:
-                            offers.append(
-                                Offer(
-                                    title=f"{restaurant} ({app_name.upper()}) - {item.get('name')}",
-                                    price_aed=float(item.get("price_aed", 0)),
-                                    retailer=app_name,
-                                    url=url,
-                                    seller=restaurant,
-                                    seller_type="official",
-                                    warranty=item.get("description", ""),
-                                    is_fixture=False
-                                )
-                            )
-                except Exception as e:
-                    logger.warning(f"Food extraction error for {app_name}: {e}")
 
             if offers:
                 return SourceResult(
@@ -145,11 +161,11 @@ class FoodDeliveryAdapter(SourceAdapter):
             "url": url,
             "schema": FOOD_OUTLET_SCHEMA,
             "instructions": FOOD_EXTRACT_INSTRUCTIONS,
-            "waitForMs": 5000,
+            "waitForMs": 2500,
             "maxPages": 1,
-            "stopAfterMs": 25000
+            "stopAfterMs": 15000
         }
-        async with httpx.AsyncClient(timeout=35.0) as client:
+        async with httpx.AsyncClient(timeout=18.0) as client:
             res = await client.post(
                 f"{context_client.base_url}/web/extract",
                 headers=headers,
