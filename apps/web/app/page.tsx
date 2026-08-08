@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { VoiceOrb } from '../components/VoiceOrb';
+import { AnimatedAvatar } from '../components/AnimatedAvatar';
 import { ResearchTrail } from '../components/ResearchTrail';
 import { VerdictCards } from '../components/VerdictCards';
 import { TranscriptRail } from '../components/TranscriptRail';
@@ -24,6 +24,8 @@ export default function Home() {
 
   const { sources, verdict, isResearching, setSources, setVerdict, setIsResearching } = useResearchStream(activeJobId);
 
+  const lastAgentMessage = messages.filter((m) => m.sender === 'agent').slice(-1)[0]?.text;
+
   // Attach the page to whatever job the VOICE AGENT started.
   const handleAgentJob = useCallback((jobId: string) => setActiveJobId(jobId), []);
   useAgentJobDiscovery(status === 'connected' || status === 'speaking', handleAgentJob);
@@ -34,7 +36,7 @@ export default function Home() {
     setSources([]);
     setVerdict(null);
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://hack-build-2-production.up.railway.app';
     try {
       const res = await fetch(`${apiUrl}/v1/tools/start_research`, {
         method: 'POST',
@@ -137,8 +139,8 @@ export default function Home() {
         {/* Left Column: Voice Agent & Conversation Panel (5 Cols) */}
         <div className="lg:col-span-5 flex flex-col justify-between bg-slate-950/60 rounded-3xl p-6 border border-slate-800/80 shadow-2xl backdrop-blur-sm">
           <div>
-            {/* Voice Orb */}
-            <VoiceOrb status={status} isSpeaking={isSpeaking} onToggleConnect={toggleConnect} />
+            {/* Animated Avatar */}
+            <AnimatedAvatar status={status} isSpeaking={isSpeaking} onToggleConnect={toggleConnect} lastMessage={lastAgentMessage} />
 
             {/* Research Trail */}
             <ResearchTrail sources={sources} isResearching={isResearching} />

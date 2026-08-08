@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { SourceResult, Verdict } from '../lib/types';
 
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API = process.env.NEXT_PUBLIC_API_URL || 'https://hack-build-2-production.up.railway.app';
 const KEY = process.env.NEXT_PUBLIC_DALAL_KEY || 'dalal-secret-123';
 const POLL_MS = 2000;
 
@@ -42,7 +42,7 @@ export function useResearchStream(jobId: string | null) {
         const data = await res.json();
         // Only render a finished verdict — a {status:"running"} body must not be
         // treated as a (malformed) verdict.
-        if (data?.status === 'done') {
+        if (data?.status === 'done' || data?.pick) {
           settled.current = jobId;
           setVerdict(data as Verdict);
           setIsResearching(false);
