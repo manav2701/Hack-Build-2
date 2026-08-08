@@ -257,7 +257,21 @@ class DeliveryAppAdapter(SourceAdapter):
                     citations=citations, is_fixture=False,
                     latency_ms=int((time.perf_counter() - start) * 1000),
                 )
-            logger.warning("delivery_app: live path yielded no offers; using labelled fixture")
+            # A LIVE search that found nothing is a real answer: "no app carries this
+            # dish in this area". Falling back to fixtures here converted that honest
+            # empty result into a fabricated one — a craving for dosa in Downtown Dubai
+            # came back recommending Pork Xiao Long Bao at AED 48, and the agent said it
+            # out loud as though it were a live price. Fixtures exist to demo the
+            # pipeline with no API key; they are not a substitute for a real "not found".
+            logger.info(
+                "delivery_app: live search found no '%s' in %s — returning an empty "
+                "result rather than fixture data", query.dish, query.area,
+            )
+            return SourceResult(
+                source="delivery_app", status="ok", facts=facts, dish_offers=[],
+                citations=citations, is_fixture=False,
+                latency_ms=int((time.perf_counter() - start) * 1000),
+            )
 
         return self._fixture(query, start)
 

@@ -36,7 +36,13 @@ class CravingQuery(BaseModel):
     dish: str = "wontons"                                             # "authentic Sichuan wontons"
     mode: Literal["delivery", "dine_in"] = "delivery"
     refiners: List[str] = Field(default_factory=list)                 # spice / authenticity / budget
-    area: str = "Downtown Dubai"                                      # delivery apps are location-gated
+    # Delivery apps are location-gated, so the area goes into every search. The default
+    # must be WIDE: it is what gets used whenever the caller omits an area, which is most
+    # of the time (the voice agent rarely collects one). A narrow default silently kills
+    # results — "Downtown Dubai" returned zero dosa listings while "Dubai" returned a
+    # real one in Karama for the same craving, seconds apart. Prefer a broad search that
+    # finds the dish over a precise one that finds nothing.
+    area: str = "Dubai"
 
 
 class DishOffer(BaseModel):

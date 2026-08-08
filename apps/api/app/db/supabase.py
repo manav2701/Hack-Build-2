@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Dict, Any, Optional
 from app.config import settings
 
@@ -25,7 +26,9 @@ class SupabaseService:
         record = {"id": job_id, "session_id": session_id, "query": query, "status": "running"}
         # Kept off `record` so the Supabase insert still matches the existing table schema
         # (no user_id column) — the ownership link lives in the accounts store instead.
-        _in_memory_jobs[job_id] = {**record, "user_id": user_id}
+        # `created_at` lets latest_job compare an anonymous voice-agent job against a
+        # signed-in user's own jobs on the one axis that matters: which is newer.
+        _in_memory_jobs[job_id] = {**record, "user_id": user_id, "created_at": time.time()}
         _in_memory_sources[job_id] = []
         if self.client:
             try:
@@ -85,19 +88,28 @@ class SupabaseService:
     async def get_verdict(self, job_id: str) -> Optional[dict]:
         return _in_memory_verdicts.get(job_id)
 
-    async def get_latest_job(self) -> Optional[dict]:
-        """The most recently created job, for the browser to attach to.
+    async def get_latest_job(self, only_anonymous: bool = True) -> Optional[dict]:
+        """The most recent job the browser is entitled to attach to.
 
         The voice agent calls start_research from ElevenLabs' cloud, so the browser
         never sees the job_id in a response — without this it has nothing to poll and
-        the UI spins forever. Newest-wins is fine for a single-user demo; a
-        multi-user build would scope this by session_id.
+        the UI spins forever.
         """
-        if not _in_memory_jobs:
-            return None
-        job_id = next(reversed(_in_memory_jobs))
-        job = _in_memory_jobs[job_id]
-        return {"job_id": job_id, "status": job.get("status", "running"),
-                "query": job.get("query", {})}
+        for job_id in reversed(_in_memory_jobs):
+            job = _in_memory_jobs[job_id]
+            # Anonymous only. A job started by a SIGNED-IN user belongs to them, and
+            # returning it here would hand their craving to whoever asked next — the
+            # exact cross-user leak the per-user scoping exists to prevent. The voice
+            # agent calls start_research from ElevenLabs' cloud with no token, so its
+            # jobs are anonymous by construction and are the shared pool this serves.
+            if only_anonymous and job.get("user_id"):
+                continue
+            return {"job_id": job_id, "status": job.get("status", "running"),
+                    "query": job.get("query", {}), "created_at": job.get("created_at", 0.0)}
+        return None
+
+    async def get_job_created_at(self, job_id: str) -> float:
+        """When a job was created, or 0.0 if it is unknown to this process."""
+        return float((_in_memory_jobs.get(job_id) or {}).get("created_at") or 0.0)
 
 db = SupabaseService()

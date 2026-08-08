@@ -274,6 +274,68 @@ async function watchForAgentJobs() {
 
 // ---------------------------------------------------------------- voice
 
+/**
+ * Explain a microphone failure, and offer the one thing that actually fixes it.
+ *
+ * A side panel has no address bar and no lock icon, so the usual "click the padlock"
+ * advice is useless here — there is nothing to click. Chrome will also not reliably
+ * show a permission prompt inside a panel.
+ *
+ * The reliable path is to open this same page as a normal TAB: a tab has an origin bar,
+ * so the prompt appears and behaves. The grant is stored against the extension's origin,
+ * which the panel shares — so once it is allowed in the tab, the panel has it too.
+ */
+function showMicHelp(rawError) {
+  const box = el('mic-error');
+  box.replaceChildren();
+  box.hidden = false;
+
+  if (rawError) {
+    box.appendChild(make('p', null, `Could not start the voice session: ${rawError}`));
+    return;
+  }
+
+  box.appendChild(make('p', null,
+    'The microphone is blocked. A side panel has no address bar, so the permission ' +
+    'has to be granted once in a normal tab — after that this panel can use it.'));
+
+  const button = make('button', 'btn full', null);
+  button.type = 'button';
+  button.style.marginTop = '10px';
+  button.appendChild(make('span', null, 'Grant microphone access'));
+  button.addEventListener('click', () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL('src/sidepanel.html?grant=1') });
+  });
+  box.appendChild(button);
+}
+
+/**
+ * Opened as a tab with ?grant=1: ask for the microphone, then say what happened.
+ *
+ * This exists purely so the permission prompt has somewhere it can legitimately appear.
+ * The stream is stopped immediately — we want the grant, not the audio.
+ */
+async function runGrantFlow() {
+  const box = el('mic-error');
+  box.replaceChildren();
+  box.hidden = false;
+  box.appendChild(make('p', null, 'Requesting microphone access…'));
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((track) => track.stop());
+    box.replaceChildren(
+      make('p', null, 'Microphone granted. You can close this tab — open the DaleelBites side panel and tap the face.')
+    );
+  } catch (err) {
+    box.replaceChildren(
+      make('p', null,
+        'Microphone still blocked. Open your browser settings → Privacy → Site settings → ' +
+        'Microphone, remove any block for this extension, then reload this tab and try again.')
+    );
+  }
+}
+
 async function startVoice() {
   if (conversation || connecting) return;
   connecting = true;
@@ -335,16 +397,11 @@ async function startVoice() {
     avatar.setConnected(false);
     setStatus('Tap to talk');
 
-    // Overwhelmingly the failure here is a denied or unavailable microphone, and the
-    // raw SDK error says nothing a person can act on.
+    // Overwhelmingly the failure here is the microphone, and the raw SDK error says
+    // nothing a person can act on.
     const raw = String(err?.message || err || '');
-    const denied = /permission|denied|NotAllowed|NotFound|device/i.test(raw);
-    setError(
-      el('mic-error'),
-      denied
-        ? 'Microphone blocked. Click the lock icon in the address bar, or check Chrome → Settings → Privacy → Site settings → Microphone, then try again.'
-        : `Could not start the voice session: ${raw}`
-    );
+    const micProblem = /permission|denied|NotAllowed|NotFound|device|audio|media/i.test(raw);
+    showMicHelp(micProblem ? null : raw);
   }
 }
 
@@ -456,6 +513,13 @@ el('auth-form').addEventListener('submit', async (event) => {
 
   avatar = createAvatar(toggleVoice);
   el('avatar-slot').appendChild(avatar.node);
+
+  // Opened as a tab purely to host the microphone permission prompt.
+  if (new URLSearchParams(location.search).get('grant') === '1') {
+    setStatus('Microphone setup');
+    runGrantFlow();
+    return;
+  }
 
   const chips = el('chips');
   POPULAR.forEach((craving) => {

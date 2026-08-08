@@ -170,11 +170,13 @@ def test_history_is_scoped_to_the_signed_in_user(client):
     assert bob_jobs == []
 
 
-def test_latest_job_prefers_the_users_own_job(client):
-    """A signed-in browser must not attach to a stranger's job.
+def test_latest_job_follows_the_voice_agent(client):
+    """A signed-in user must still see verdicts the VOICE AGENT starts.
 
-    Newest-wins globally is fine for one demo user and wrong for two — you would watch
-    someone else's verdict appear on your screen.
+    The agent calls start_research from ElevenLabs' cloud with no token, so its jobs are
+    anonymous. Preferring the user's own job unconditionally pinned them to whatever they
+    last ran themselves, and every spoken verdict thereafter failed to reach the screen —
+    the panel simply never updated. Newest-wins among the jobs the caller may see.
     """
     alice = client.post("/v1/auth/signup", json={"email": "alice2@b.ae", "password": "long-enough-1"}).json()
     a_headers = {"Authorization": f"Bearer {alice['token']}"}
@@ -183,12 +185,41 @@ def test_latest_job_prefers_the_users_own_job(client):
         "/v1/tools/start_research", json={"dish": "wontons", "area": "JVC"}, headers=a_headers
     ).json()["job_id"]
 
-    # Someone else (or the voice agent) starts a newer, anonymous job afterwards.
-    anonymous = client.post("/v1/tools/start_research", json={"dish": "burger", "area": "Marina"}).json()["job_id"]
-    assert anonymous != mine
+    # The agent then starts a newer, anonymous job.
+    spoken = client.post("/v1/tools/start_research", json={"dish": "dosa", "area": "Dubai"}).json()["job_id"]
+    assert spoken != mine
+
+    assert client.get("/v1/tools/latest_job", headers=a_headers).json()["job_id"] == spoken
+    assert client.get("/v1/tools/latest_job").json()["job_id"] == spoken
+
+
+def test_latest_job_prefers_the_users_own_when_it_is_newer(client):
+    alice = client.post("/v1/auth/signup", json={"email": "alice3@b.ae", "password": "long-enough-1"}).json()
+    a_headers = {"Authorization": f"Bearer {alice['token']}"}
+
+    client.post("/v1/tools/start_research", json={"dish": "dosa", "area": "Dubai"})   # anonymous, older
+    mine = client.post(
+        "/v1/tools/start_research", json={"dish": "wontons", "area": "JVC"}, headers=a_headers
+    ).json()["job_id"]
 
     assert client.get("/v1/tools/latest_job", headers=a_headers).json()["job_id"] == mine
-    assert client.get("/v1/tools/latest_job").json()["job_id"] == anonymous
+
+
+def test_latest_job_never_leaks_another_signed_in_users_job(client):
+    """Bob's craving is Bob's. Alice must never be handed it, even though it is newest."""
+    alice = client.post("/v1/auth/signup", json={"email": "alice4@b.ae", "password": "long-enough-1"}).json()
+    bob = client.post("/v1/auth/signup", json={"email": "bob4@b.ae", "password": "long-enough-1"}).json()
+
+    anonymous = client.post("/v1/tools/start_research", json={"dish": "dosa", "area": "Dubai"}).json()["job_id"]
+    bobs = client.post(
+        "/v1/tools/start_research", json={"dish": "sushi", "area": "Marina"},
+        headers={"Authorization": f"Bearer {bob['token']}"},
+    ).json()["job_id"]
+
+    for headers in ({"Authorization": f"Bearer {alice['token']}"}, {}):
+        seen = client.get("/v1/tools/latest_job", headers=headers).json()["job_id"]
+        assert seen != bobs, "another user's job must never surface"
+        assert seen == anonymous
 
 
 def test_anonymous_research_still_works(client):

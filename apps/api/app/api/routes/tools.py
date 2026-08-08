@@ -89,22 +89,30 @@ async def latest_job(
 ):
     verify_secret(x_dalal_key)
 
-    # A signed-in browser attaches to ITS OWN newest job. Newest-wins globally is fine
-    # for a single-user demo but wrong the moment two people use the deployed app at
-    # once — you would watch a stranger's verdict appear on your screen. The voice agent
-    # still starts jobs anonymously, so an authenticated user with no jobs of their own
-    # falls back to the global newest rather than staring at an empty panel.
+    # Which job should the browser attach to? The genuinely NEWEST one it is entitled
+    # to see — its own, or an anonymous one.
+    #
+    # Preferring a signed-in user's own job unconditionally was wrong, and broke the
+    # main flow: the voice agent starts every job ANONYMOUSLY from ElevenLabs' cloud, so
+    # a user who had ever run one craving of their own got pinned to it forever and no
+    # spoken verdict ever reached their screen again. Comparing timestamps keeps the
+    # multi-user protection that motivated the scoping — another signed-in user's jobs
+    # are still invisible — while letting the agent's own work through.
+    global_job = await db.get_latest_job()
+
     user = current_user(authorization)
     if user:
         owned = user_store.latest_job_for(user["id"])
         if owned:
-            status = await db.get_job_status(owned["job_id"])
-            return {"job_id": owned["job_id"], "status": status.get("status", "running"),
-                    "query": {"dish": owned.get("dish", ""), "area": owned.get("area", "")},
-                    "scope": "user"}
+            owned_at = float(owned.get("created_at") or 0.0)
+            global_at = float((global_job or {}).get("created_at") or 0.0)
+            if not global_job or owned_at >= global_at:
+                status = await db.get_job_status(owned["job_id"])
+                return {"job_id": owned["job_id"], "status": status.get("status", "running"),
+                        "query": {"dish": owned.get("dish", ""), "area": owned.get("area", "")},
+                        "scope": "user"}
 
-    job = await db.get_latest_job()
-    return {**job, "scope": "global"} if job else {"job_id": None, "status": "idle"}
+    return {**global_job, "scope": "global"} if global_job else {"job_id": None, "status": "idle"}
 
 
 async def _verdict_payload(job_id: str) -> Dict[str, Any]:

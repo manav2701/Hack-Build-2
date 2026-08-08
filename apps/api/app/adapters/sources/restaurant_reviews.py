@@ -175,7 +175,22 @@ class RestaurantReviewsAdapter(SourceAdapter):
                         reviews=[], citations=citations, is_fixture=False,
                         latency_ms=int((time.perf_counter() - start) * 1000),
                     )
-                logger.warning("restaurant_reviews: live path yielded nothing; using labelled fixture")
+                # A live search that surfaced no review page is an honest "no reviews
+                # found", and serving fixtures here is worse than in the price adapter:
+                # `_reviews_for` attributes the whole review set to the winning
+                # restaurant when only one is in contention, so a placeholder quote
+                # would be presented as THAT restaurant's customer saying it. Return
+                # nothing instead — `authenticity_note` is Optional precisely so a pick
+                # can stand without a quote.
+                logger.info(
+                    "restaurant_reviews: live search found no review page for '%s' in %s — "
+                    "returning empty rather than fixture prose", query.dish, query.area,
+                )
+                return SourceResult(
+                    source="restaurant_reviews", status="ok", facts=facts,
+                    reviews=[], citations=citations, is_fixture=False,
+                    latency_ms=int((time.perf_counter() - start) * 1000),
+                )
         except Exception as exc:  # this adapter must never break the orchestrator
             logger.exception("restaurant_reviews: live path failed")
             return SourceResult(

@@ -374,6 +374,24 @@ def _reviews_agree(reviews: Sequence[RestaurantReview], rating: Optional[float])
 # spoken summary enforcement (hard contract, not a hope)
 # ---------------------------------------------------------------------------
 
+def _disclose_fixture(spoken: str, is_fixture: bool) -> str:
+    """Say out loud when a verdict rests on sample data.
+
+    Rule 4 of the grounding contract ("fixture honesty") was only ever enforced in the
+    UI, as a badge on the card. But this is a VOICE product: the spoken line is the
+    primary channel, and a listener who never looks at the screen was told
+    "Go with Nan Xiang Xiao Long Bao, AED 48" with nothing to indicate the price was
+    illustrative. A badge the user cannot hear is not disclosure.
+
+    Prepended, not appended, so it is heard before the recommendation rather than after
+    the listener has already acted on it. Applied AFTER `_phrase`, so the LLM rewrite
+    can neither drop it nor bury it.
+    """
+    if not is_fixture:
+        return spoken
+    return f"Heads up, this is sample data, not a live price. {spoken}"
+
+
 def _finalise_spoken(text: str, allowed_numbers: Set[float]) -> str:
     """Enforce grounding rules 2 and 5 on the spoken line.
 
@@ -489,6 +507,7 @@ class VerdictSynthesizer:
 
         spoken = self._compose_food_spoken(pick, runner_up, winner, price_note)
         spoken = await self._phrase(spoken, pick, runner_up)
+        spoken = _disclose_fixture(spoken, is_fixture)
 
         return Verdict(
             pick=pick,
@@ -720,6 +739,7 @@ class VerdictSynthesizer:
                 f"Runner-up is the {runner_up.name} on {runner_up.retailer} for AED {_fmt_money(runner_up.price_aed)}."
             )
         spoken = await self._phrase(" ".join(spoken_bits), pick, runner_up)
+        spoken = _disclose_fixture(spoken, is_fixture)
 
         return Verdict(
             pick=pick,
