@@ -22,6 +22,15 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(tools.router)
 
+@app.get("/")
+async def root():
+    return {
+        "status": "online",
+        "service": "Dalal UAE Voice Broker API",
+        "docs_url": "/docs",
+        "health_check": "/health"
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
