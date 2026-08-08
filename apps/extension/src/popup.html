@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DaleelBites</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <div>
+        <p class="wordmark">Daleel<span>Bites</span></p>
+        <p class="label">UAE Voice Food Broker</p>
+      </div>
+      <button id="account-btn" class="account" type="button" hidden></button>
+    </header>
+
+    <!-- Craving input -->
+    <section id="search-view">
+      <form id="craving-form" autocomplete="off">
+        <label class="label" for="craving">What are you craving?</label>
+        <div class="row">
+          <input id="craving" type="text" placeholder="Sichuan wontons…" required />
+          <button class="btn" type="submit"><span>Go</span></button>
+        </div>
+        <label class="label area-label" for="area">Area</label>
+        <input id="area" type="text" value="Dubai" />
+      </form>
+
+      <div class="chips" id="chips"></div>
+      <p class="error" id="search-error" hidden></p>
+    </section>
+
+    <!-- Result -->
+    <section id="result-view" hidden>
+      <div class="result-head">
+        <p class="label" id="result-label">The verdict</p>
+        <button class="linkbtn" id="new-search" type="button">New craving</button>
+      </div>
+      <div id="result-body"></div>
+    </section>
+
+    <!-- Auth -->
+    <section id="auth-view" hidden>
+      <p class="label" id="auth-title">Sign in</p>
+      <form id="auth-form" autocomplete="off">
+        <input id="auth-name" type="text" placeholder="Name" hidden />
+        <input id="auth-email" type="email" placeholder="you@example.ae" required />
+        <input id="auth-password" type="password" placeholder="Password" required />
+        <button class="btn full" type="submit"><span id="auth-submit-text">Sign in</span></button>
+      </form>
+      <p class="error" id="auth-error" hidden></p>
+      <p class="switch">
+        <span id="auth-switch-text">No account yet?</span>
+        <button class="linkbtn" id="auth-switch" type="button">Sign up</button>
+      </p>
+      <button class="linkbtn back" id="auth-back" type="button">← Back</button>
+    </section>
+
+    <footer class="foot">
+      <button class="linkbtn" id="signin-link" type="button">Sign in to save cravings</button>
+      <a id="webapp-link" href="#" target="_blank" rel="noopener noreferrer">Open web app ↗</a>
+    </footer>
+
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

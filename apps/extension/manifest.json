@@ -1,0 +1,41 @@
+{
+  "manifest_version": 3,
+  "name": "DaleelBites — UAE Food Broker",
+  "version": "1.0.0",
+  "description": "Compare any dish live across Talabat, Deliveroo and Noon Food, then jump straight to the cheapest order page.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_popup": "src/popup.html",
+    "default_title": "DaleelBites",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "src/background.js",
+    "type": "module"
+  },
+  "permissions": ["storage", "alarms", "notifications"],
+  "host_permissions": [
+    "https://hack-build-2-production.up.railway.app/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://www.talabat.com/*",
+        "https://talabat.com/*",
+        "https://deliveroo.ae/*",
+        "https://food.noon.com/*"
+      ],
+      "js": ["src/content.js"],
+      "css": ["src/content.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}

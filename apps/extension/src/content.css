@@ -1,0 +1,18 @@
+/* The injected UI lives inside a closed shadow root, so its real styling ships in
+   content.js and cannot be reached from here — or from the host page's stylesheet,
+   which is the point.
+
+   This file governs only the shadow HOST element: the box the page itself can see.
+   `all: initial` resets whatever the delivery app's global rules would otherwise
+   inherit onto it, and the reset is scoped to our id so nothing on the page changes. */
+
+#daleelbites-root {
+  all: initial;
+  position: fixed !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  z-index: 2147483647 !important;
+  color-scheme: light;
+}
