@@ -81,6 +81,35 @@ def test_unknown_review_count_is_not_reported_as_zero():
     assert not any("only 0 reviews" in w for w in v.pick.watch_outs)
 
 
+def test_top_review_is_returned_as_a_structured_object_for_the_ui():
+    """The frontend renders author/stars/source/link, so it needs the whole review,
+    not just the prose in authenticity_note."""
+    rev = RestaurantReview(source="tripadvisor", author="Gianni", rating=5.0,
+                           date="Nov 2024", url="https://tripadvisor.com/x",
+                           text="The wontons were flavorful with a perfect texture.")
+    v = build([offer("talabat", "Chicken Xiao Long Bao", 41)], [rev])
+    assert v.pick.top_review is not None
+    assert v.pick.top_review.author == "Gianni"
+    assert v.pick.top_review.rating == 5.0
+    assert v.pick.top_review.source == "tripadvisor"
+    assert v.pick.top_review.url == "https://tripadvisor.com/x"
+    assert "wontons" in v.pick.top_review.text
+
+
+def test_top_review_is_none_rather_than_invented_when_no_review_exists():
+    v = build([offer("talabat", "Chicken Xiao Long Bao", 41)])
+    assert v.pick.top_review is None
+
+
+def test_top_review_prefers_the_more_substantive_higher_rated_review():
+    thin = RestaurantReview(source="zomato", rating=3.0, url="https://zomato.com/a", text="ok")
+    rich = RestaurantReview(source="tripadvisor", rating=5.0, url="https://tripadvisor.com/b",
+                            text="Genuinely authentic wontons, easily the standout dish here.")
+    v = build([offer("talabat", "Chicken Xiao Long Bao", 41)], [thin, rich])
+    assert v.pick.top_review is not None
+    assert v.pick.top_review.url == "https://tripadvisor.com/b"
+
+
 def test_review_source_is_credited_when_it_reaches_a_pick():
     rev = RestaurantReview(source="tripadvisor", rating=5, url="https://tripadvisor.com/x",
                            text="The xiao long bao here are the standout, truly authentic.")

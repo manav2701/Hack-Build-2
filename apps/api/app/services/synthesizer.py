@@ -300,16 +300,33 @@ def _reviews_for(group: _RestaurantGroup, reviews: Sequence[RestaurantReview],
     return list(reviews) if group_count == 1 else []
 
 
+def _top_review(reviews: Sequence[RestaurantReview]) -> Optional[RestaurantReview]:
+    """The single most useful REAL review for this restaurant, or None.
+
+    Ranked by: mentions an authenticity/dish cue, then star rating, then how substantive
+    the text is. Returned whole (author, rating, source, url) so the UI can render a
+    proper review card instead of re-parsing prose. Never fabricated — None means we
+    could not attribute a real review to this place.
+    """
+    with_text = [r for r in reviews if (r.text or "").strip()]
+    if not with_text:
+        return None
+    return sorted(
+        with_text,
+        key=lambda r: (
+            any(h in (r.text or "").lower() for h in _AUTHENTIC_HINTS),
+            r.rating or 0.0,
+            len((r.text or "").strip()),
+        ),
+        reverse=True,
+    )[0]
+
+
 def _authenticity_note(reviews: Sequence[RestaurantReview]) -> Optional[str]:
     """A quote from real review prose, or None. Never a synthesised sentence."""
-    if not reviews:
+    best = _top_review(reviews)
+    if best is None:
         return None
-    ranked = sorted(
-        reviews,
-        key=lambda r: (any(h in (r.text or "").lower() for h in _AUTHENTIC_HINTS), r.rating or 0.0),
-        reverse=True,
-    )
-    best = ranked[0]
     text = " ".join((best.text or "").split())
     if not text:
         return None
@@ -551,6 +568,7 @@ class VerdictSynthesizer:
             rating=group.rating,
             review_count=group.review_count,
             authenticity_note=_authenticity_note(group_reviews),   # (g) None when no real text
+            top_review=_top_review(group_reviews),                 # same review, structured for the UI
             delivery_estimate=delivery_estimate,
             screenshot_url=cheapest.screenshot_url,
             logo_url=cheapest.logo_url,

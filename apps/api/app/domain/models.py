@@ -126,6 +126,10 @@ class DishRecommendation(BaseModel):
     rating: Optional[float] = None
     review_count: Optional[int] = None
     authenticity_note: Optional[str] = None                           # grounded in Zomato/TripAdvisor review text
+    # The single best real review for this restaurant, structured so the UI can render
+    # author/stars/source/link rather than parsing the prose in authenticity_note. None
+    # when no review body could be attributed to this place — never a synthesised review.
+    top_review: Optional["RestaurantReview"] = None
     # App-published estimates, never the user's checkout total (§0.8).
     delivery_estimate: Optional[str] = None                           # "AED 9.00 delivery, within 40 mins (as listed)"
     screenshot_url: Optional[str] = None
