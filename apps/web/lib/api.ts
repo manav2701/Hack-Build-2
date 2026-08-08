@@ -1,27 +1,68 @@
 /**
  * The one place that knows where the backend is and what a call to it looks like.
  *
- * Base-URL rule: a `NEXT_PUBLIC_API_URL` pointing at localhost is ignored in the
- * browser. Vercel builds have repeatedly been produced with a developer's local URL
- * baked in, which ships a site that can only ever talk to a machine that isn't there.
- * A localhost value is honoured only when the page is itself being served from
- * localhost, i.e. when it is actually true.
+ * `NEXT_PUBLIC_API_URL` is inlined at BUILD time, so a bad value is baked into the
+ * deployed bundle and every request fails silently from then on — the UI just never
+ * updates, which reads as "the app is broken" rather than "the config is wrong". Two
+ * values are therefore rejected in favour of the known-good default:
+ *
+ *   * a **placeholder** copied out of .env.example. A Vercel deployment ran for days
+ *     with `https://<your-railway-app-url>.up.railway.app` baked in; nothing could
+ *     reach the backend and the verdict panel sat empty forever.
+ *   * a **localhost** URL, unless the page is itself served from localhost. A build
+ *     carrying a developer's local URL ships a site that can only ever talk to a
+ *     machine that isn't there.
+ *
+ * Anything else is honoured — pointing a build at a staging backend must still work.
  */
 
 export const RAILWAY_API = 'https://hack-build-2-production.up.railway.app';
 
+/** True when `value` could not possibly be a reachable backend. */
+function isUnusableUrl(value: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return true; // not a URL at all
+  }
+  if (!/^https?:$/.test(parsed.protocol)) return true;
+
+  const host = parsed.hostname;
+  // Placeholder markers: angle brackets survive in the hostname of
+  // "https://<your-railway-app-url>.up.railway.app", and "your-" is the convention
+  // .env.example uses for every fill-me-in value.
+  if (/[<>{}\s]/.test(value) || /(^|\.)your-|example\.com$|changeme/i.test(host)) return true;
+  // A bare word with no dot is not a deployable host (localhost is handled separately).
+  if (!host.includes('.') && !/^localhost$/i.test(host)) return true;
+
+  return false;
+}
+
 function resolveApiBase(): string {
   const configured = (process.env.NEXT_PUBLIC_API_URL || '').trim().replace(/\/+$/, '');
-  const isLocal = /localhost|127\.0\.0\.1/.test(configured);
-
   if (!configured) return RAILWAY_API;
-  if (!isLocal) return configured;
+
+  if (isUnusableUrl(configured)) {
+    // Loud, because the symptom (a UI that never updates) points nowhere near the cause.
+    if (typeof console !== 'undefined') {
+      console.error(
+        `[DaleelBites] NEXT_PUBLIC_API_URL is not a usable backend URL (${configured}). ` +
+          `Falling back to ${RAILWAY_API}. Fix or remove the variable in your deployment.`
+      );
+    }
+    return RAILWAY_API;
+  }
 
   // A local API is only reachable from a local page.
-  if (typeof window !== 'undefined' && /localhost|127\.0\.0\.1/.test(window.location.hostname)) {
-    return configured;
+  if (/localhost|127\.0\.0\.1/.test(configured)) {
+    if (typeof window !== 'undefined' && /localhost|127\.0\.0\.1/.test(window.location.hostname)) {
+      return configured;
+    }
+    return RAILWAY_API;
   }
-  return RAILWAY_API;
+
+  return configured;
 }
 
 export const API_BASE = resolveApiBase();
