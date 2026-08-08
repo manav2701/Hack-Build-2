@@ -7,6 +7,22 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+# Cache window for every fetch. NEVER pass 0: cache-bypass forces a cold render of a
+# JS-heavy delivery-app page, which times out (Cloudflare 524) or serves the
+# location-gated homepage. Verified 2026-08-08 — docs/VENDOR-CONTRACTS.md §0.3.
+DAY_MS = 86_400_000
+
+# A Talabat restaurant URL without a valid ``?aid=<areaId>`` 302s to the homepage
+# location-picker, yet still answers HTTP 200 with ~4KB of homepage markdown and zero
+# prices. Detecting that sentinel is the only way to tell this silent failure from a
+# genuine empty menu (docs/VENDOR-CONTRACTS.md §0.2).
+LOCATION_GATE_SENTINEL = "Fast delivery of food, groceries and more"
+
+
+def is_location_gated(text: str) -> bool:
+    """True when a fetch was silently redirected to the app's location picker."""
+    return bool(text) and LOCATION_GATE_SENTINEL in text
+
 
 class ContextDevClient:
     """Client wrapper for context.dev web scraping and extraction APIs.
@@ -47,7 +63,7 @@ class ContextDevClient:
             and not settings.USE_FIXTURES
         )
 
-    async def scrape_markdown(self, url: str, max_age_ms: int = 60_000, wait_for_ms: int = 0,
+    async def scrape_markdown(self, url: str, max_age_ms: int = DAY_MS, wait_for_ms: int = 0,
                               main_content_only: bool = True) -> str:
         """GET /web/scrape/markdown — fast single-page markdown (reviews/community/warranty).
 
@@ -69,14 +85,89 @@ class ContextDevClient:
         logger.warning("context.dev scrape failed %s: HTTP %s", url, resp.status_code)
         return f"[context.dev error {resp.status_code}] {url}"
 
+    async def search(
+        self,
+        query: str,
+        num_results: int = 10,
+        include_domains: Optional[list] = None,
+        country: str = "ae",
+    ) -> list:
+        """POST /web/search — find real URLs from a natural-language craving.
+
+        This endpoint is why Dalal needs no pinned demo URLs. It also returns Talabat
+        restaurant links **with the ``?aid=<areaId>`` already attached**, which is the only
+        way past Talabat's location gate (the area id is not transferable between
+        restaurants — see docs/VENDOR-CONTRACTS.md §0.2).
+
+        Returns the raw result dicts (``url``/``title``/``snippet``); [] on failure.
+        """
+        if not self.is_live():
+            return []
+
+        body = {"query": query, "numResults": num_results, "country": country}
+        if include_domains:
+            body["includeDomains"] = include_domains
+        try:
+            async with httpx.AsyncClient(timeout=45.0) as client:
+                resp = await client.post(f"{self.base_url}/web/search", headers=self._headers, json=body)
+        except Exception as exc:
+            logger.warning("context.dev search error %r: %s", query, exc)
+            return []
+        if resp.status_code == 200:
+            return resp.json().get("results") or []
+        logger.warning("context.dev search failed %r: HTTP %s", query, resp.status_code)
+        return []
+
+    async def screenshot(self, url: str, max_age_ms: int = DAY_MS, wait_for_ms: int = 4_000) -> Optional[str]:
+        """GET /web/screenshot — returns a hosted PNG url for the page, or None.
+
+        Verified live: responds ``{status, domain, screenshot, ...}``. Note this is a GET
+        with ``directUrl``; the ``POST /web/screenshot`` path assumed by the original plan
+        does not exist (403).
+        """
+        if not self.is_live():
+            return None
+        params = {"directUrl": url, "maxAgeMs": max_age_ms, "waitForMs": wait_for_ms,
+                  "handleCookiePopup": "true"}
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.get(f"{self.base_url}/web/screenshot", headers=self._headers, params=params)
+        except Exception as exc:
+            logger.warning("context.dev screenshot error %s: %s", url, exc)
+            return None
+        if resp.status_code == 200:
+            return resp.json().get("screenshot")
+        logger.warning("context.dev screenshot failed %s: HTTP %s", url, resp.status_code)
+        return None
+
+    async def brand(self, domain: str) -> dict:
+        """POST /brand/retrieve — logo + colour palette for a delivery app / restaurant domain.
+
+        Verified live: ``{"type": "by_domain", "domain": ...}`` returns ``{brand: {logos, colors, ...}}``.
+        (The ``POST /brand`` path assumed by the original plan does not exist.)
+        """
+        if not self.is_live():
+            return {}
+        try:
+            async with httpx.AsyncClient(timeout=45.0) as client:
+                resp = await client.post(f"{self.base_url}/brand/retrieve", headers=self._headers,
+                                         json={"type": "by_domain", "domain": domain})
+        except Exception as exc:
+            logger.warning("context.dev brand error %s: %s", domain, exc)
+            return {}
+        if resp.status_code == 200:
+            return resp.json().get("brand") or {}
+        logger.warning("context.dev brand failed %s: HTTP %s", domain, resp.status_code)
+        return {}
+
     async def extract(
         self,
         url: str,
         schema: dict,
         instructions: str,
-        max_age_ms: int = 60_000,
+        max_age_ms: int = DAY_MS,
         max_pages: int = 1,
-        stop_after_ms: int = 20_000,
+        stop_after_ms: int = 40_000,
     ) -> Optional[dict]:
         """POST /web/extract — schema-guided structured extraction of ONE product page.
 

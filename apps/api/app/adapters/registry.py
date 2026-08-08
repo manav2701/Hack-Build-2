@@ -46,3 +46,63 @@ CATEGORIES: Dict[str, CategorySpec] = {
 
 def get_category_spec(category: str) -> CategorySpec:
     return CATEGORIES.get(category, CATEGORIES["laptop"])
+
+
+# ---------------------------------------------------------------------------
+# Domain seam. The orchestrator builds its adapter list from the active
+# DomainConfig instead of a hardcoded four, so adding a domain is config, not code.
+# ---------------------------------------------------------------------------
+
+class DeliveryApp(BaseModel):
+    """One UAE delivery app, described by what the live verification proved about it.
+
+    Every field here is measured — see docs/VENDOR-CONTRACTS.md §0.4/§0.5. The URL
+    markers are how we tell a real menu/listing page from a marketing or listing-index
+    page in `/web/search` results.
+    """
+    key: str                                  # DishOffer.app
+    domain: str                               # includeDomains filter + brand lookup
+    menu_marker: str                          # substring identifying a MENU (dish+price) page
+    listing_marker: str                       # substring identifying an AREA LISTING (fee/ETA) page
+    required: bool = True                     # False → best-effort; absence is not a failure
+
+
+# Talabat and Deliveroo are proven-rich. EatEasy genuinely returns priced dishes but has
+# thin coverage (it listed neither test restaurant), so it is best-effort: it will often
+# return nothing and that must not degrade the verdict.
+DELIVERY_APPS: List[DeliveryApp] = [
+    DeliveryApp(key="talabat", domain="talabat.com",
+                menu_marker="/restaurant/", listing_marker="/restaurants/"),
+    DeliveryApp(key="deliveroo", domain="deliveroo.ae",
+                menu_marker="/menu/", listing_marker="/restaurants/"),
+    DeliveryApp(key="eateasy", domain="eateasy.ae",
+                menu_marker="/", listing_marker="/", required=False),
+]
+
+# Only these carry review BODIES; the delivery apps expose a rating number only (§0.7).
+REVIEW_SOURCES: List[str] = ["zomato.com", "tripadvisor.com"]
+
+
+class DomainConfig(BaseModel):
+    """Which adapters run for a domain, and the clarifying question the agent asks."""
+    domain: str
+    sources: List[str]
+    clarifier: str
+
+
+DOMAINS: Dict[str, DomainConfig] = {
+    "shopping": DomainConfig(
+        domain="shopping",
+        sources=["marketplace", "reviews", "community", "warranty"],
+        clarifier="What's your budget, and is official UAE warranty a must?",
+    ),
+    "food": DomainConfig(
+        domain="food",
+        sources=["delivery_app", "restaurant_reviews"],
+        clarifier="Delivery or dine-in? And how do you feel about spice?",
+    ),
+}
+
+
+def get_domain_config(domain: str) -> DomainConfig:
+    return DOMAINS.get(domain, DOMAINS["food"])

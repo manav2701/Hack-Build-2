@@ -1,25 +1,96 @@
 import asyncio
+import importlib
 import time
 import logging
-from typing import List
-from app.domain.models import ProductQuery, SourceResult
-from app.adapters.sources import MarketplaceAdapter, ReviewsAdapter, CommunityAdapter, WarrantyAdapter
+from typing import Any, Dict, List, Tuple, Union
+
+from app.adapters.base import SourceAdapter
+from app.adapters.registry import get_domain_config
+from app.domain.models import CravingQuery, ProductQuery, SourceResult
 from app.services.synthesizer import synthesizer
 from app.db.supabase import db
 
 logger = logging.getLogger(__name__)
 ADAPTER_TIMEOUT_S = 20.0
 
-async def run_research_pipeline(job_id: str, query: ProductQuery) -> None:
-    """Executes 4 parallel scraping jobs, records each in Supabase, and builds Verdict."""
-    logger.info(f"Starting research job {job_id} for category '{query.category}'")
+Query = Union[CravingQuery, ProductQuery]
 
-    adapters = [
-        MarketplaceAdapter(),
-        ReviewsAdapter(),
-        CommunityAdapter(),
-        WarrantyAdapter()
-    ]
+# The domain seam. DomainConfig.sources (registry.py) names the sources a domain runs;
+# this maps each name to its adapter class by MODULE PATH, not by import, so the module
+# still loads when a food adapter file has not landed yet. Adding a domain = registry
+# entry + one line here.
+_ADAPTER_PATHS: Dict[str, Tuple[str, str]] = {
+    # shopping
+    "marketplace": ("app.adapters.sources.marketplace", "MarketplaceAdapter"),
+    "reviews": ("app.adapters.sources.reviews", "ReviewsAdapter"),
+    "community": ("app.adapters.sources.community", "CommunityAdapter"),
+    "warranty": ("app.adapters.sources.warranty", "WarrantyAdapter"),
+    # food
+    "delivery_app": ("app.adapters.sources.delivery_app", "DeliveryAppAdapter"),
+    "restaurant_reviews": ("app.adapters.sources.restaurant_reviews", "RestaurantReviewsAdapter"),
+}
+
+# Food-shape markers vs shopping-shape markers, used to classify a raw webhook body.
+_FOOD_FIELDS = frozenset(CravingQuery.model_fields) - {"session_id"}
+_SHOPPING_FIELDS = frozenset(ProductQuery.model_fields) - {"session_id"}
+
+
+def infer_domain(query: Query) -> str:
+    """The query type IS the domain selector — no caller passes a domain string."""
+    return "food" if isinstance(query, CravingQuery) else "shopping"
+
+
+def build_query(payload: Dict[str, Any]) -> Query:
+    """Turn a raw webhook body into the right query shape.
+
+    Parsed here rather than by a FastAPI Union body because (a) both shapes are
+    all-optional, so a smart-union would silently coerce a shopping body into a
+    CravingQuery, and (b) a validation error would surface as a 422 mid-conversation,
+    which an ElevenLabs webhook tool must never receive. Unknown/garbled bodies fall
+    back to the active product direction (food) with defaults.
+    """
+    payload = payload or {}
+    keys = set(payload)
+    if keys & _SHOPPING_FIELDS and not (keys & _FOOD_FIELDS):
+        model: type[Query] = ProductQuery
+    else:
+        model = CravingQuery
+
+    try:
+        return model(**payload)
+    except Exception as exc:
+        # Never 4xx a voice tool: degrade to defaults and say so in the log.
+        logger.warning("Invalid %s payload (%s); falling back to defaults", model.__name__, exc)
+        return model()
+
+
+def resolve_adapters(domain: str) -> List[SourceAdapter]:
+    """Instantiate the adapters DomainConfig.sources names, skipping any not yet shipped."""
+    config = get_domain_config(domain)
+    adapters: List[SourceAdapter] = []
+    for source in config.sources:
+        path = _ADAPTER_PATHS.get(source)
+        if not path:
+            logger.warning("Domain '%s' names unknown source '%s'; skipping", domain, source)
+            continue
+        module_path, class_name = path
+        try:
+            adapters.append(getattr(importlib.import_module(module_path), class_name)())
+        except (ImportError, AttributeError) as exc:
+            # Honest degradation: a source under concurrent construction must not
+            # take down the run — the verdict is built from whatever did resolve.
+            logger.warning("Adapter '%s' unavailable (%s); skipping", source, exc)
+    return adapters
+
+
+async def run_research_pipeline(job_id: str, query: Query) -> None:
+    """Runs the active domain's adapters in parallel, records each, then builds the Verdict."""
+    domain = infer_domain(query)
+    adapters = resolve_adapters(domain)
+    logger.info(
+        "Starting research job %s [domain=%s] with adapters: %s",
+        job_id, domain, [a.name for a in adapters] or "none",
+    )
 
     tasks = [_run_single_adapter(job_id, adapter, query) for adapter in adapters]
     results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -31,14 +102,14 @@ async def run_research_pipeline(job_id: str, query: ProductQuery) -> None:
         elif isinstance(res, Exception):
             logger.error(f"Adapter execution exception in job {job_id}: {res}")
 
-    # Build final 2-product verdict
     verdict = await synthesizer.build_verdict(query, clean_results)
 
     # Save final verdict to Supabase & set job status to completed
     await db.save_verdict(job_id, verdict.dict())
     logger.info(f"Completed research job {job_id} successfully")
 
-async def _run_single_adapter(job_id: str, adapter, query: ProductQuery) -> SourceResult:
+
+async def _run_single_adapter(job_id: str, adapter: SourceAdapter, query: Query) -> SourceResult:
     start_time = time.perf_counter()
     try:
         result = await asyncio.wait_for(adapter.run(query), timeout=ADAPTER_TIMEOUT_S)
