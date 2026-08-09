@@ -17,16 +17,13 @@ Every number in that verdict traces back to a real fetch. If a source comes back
 
 ## See it in action
 
-[![Watch the DaleelBites Chrome extension demo](https://drive.google.com/thumbnail?id=1DsnuPCDhiJ5WtbAn18-GRJIZTf5yFRBV&sz=w1280)](https://drive.google.com/file/d/1DsnuPCDhiJ5WtbAn18-GRJIZTf5yFRBV/view)
-
-*Click the image to play — GitHub can't embed Google Drive video directly, so this opens it in Drive.*
+https://github.com/user-attachments/assets/3209b6d7-461f-4aad-a50d-699856b4aa0a
 
 ## Try it live
 
 | | |
 |---|---|
 | **Web app** | <https://hack-build-2.vercel.app> |
-| **API** | <https://hack-build-2-production.up.railway.app> |
 | **Chrome extension** | see [apps/extension/README.md](apps/extension/README.md) — load-unpacked, no store listing yet |
 
 ## How it's built
