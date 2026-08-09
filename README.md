@@ -1,46 +1,88 @@
-# Dalal (دلال) — Voice-First UAE Food Broker
+# DaleelBites (دليل بايتس) — Voice-First UAE Food Broker
 
-> **Dubai AI Hub Builder Lab.** Speak a craving; Dalal finds the best place, compares the dish live across delivery apps, and **takes you to the order**. Advice is commoditized (ChatGPT can recommend a restaurant) — the moat is the **action**: craving → ready to order.
+Speak a craving. DaleelBites checks what's actually available right now across Talabat, Deliveroo and Noon Food, tells you the best option out loud, and takes you straight to the order page.
 
-**Product & flow (master doc):** [docs/FOOD-FLOW.md](docs/FOOD-FLOW.md) · **Spec:** [docs/TECH-SPEC.md](docs/TECH-SPEC.md) · **Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · **Contracts:** [docs/CONTRACTS.md](docs/CONTRACTS.md) · **Verified vendor APIs:** [docs/VENDOR-CONTRACTS.md](docs/VENDOR-CONTRACTS.md) · **Deploy & manual setup:** [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
+## The problem
 
-**Live:** [web app](https://hack-build-2.vercel.app) · [API](https://hack-build-2-production.up.railway.app) · [Chrome extension](apps/extension/README.md)
+Any chatbot can *recommend* a restaurant — that's commodity advice. The actual friction is everything after: opening three delivery apps, checking which one has the dish, comparing prices, reading reviews to see if it's any good, and finally tapping order. That's five minutes of app-switching for a decision that should take one conversation.
 
-## What it does
+## The solution
 
-Say *"I'm craving authentic Sichuan wontons"* → a light voice interview (delivery or dine-in? spice?) → parallel **context.dev** research across delivery apps (Talabat/Deliveroo/Careem), discovery and reviews *while the agent keeps talking* → a two-option verdict (best place + best-value app) with live prices and a menu screenshot → **the agent deep-links you straight to the order page** (ElevenLabs client tool). The latency is the conversation, not a spinner.
+1. **You say what you're craving.** A voice agent (ElevenLabs) has a short back-and-forth — delivery or dine-in, any preferences — while it works in the background.
+2. **It searches live**, in parallel, across delivery apps and review sites (context.dev), extracting real menu prices, ratings, and actual customer reviews as it goes. No pinned demo data — it searches fresh every time.
+3. **It ranks by what matters**: first, which places actually carry the dish; then reviews (weighted by how many, so 200 reviews at 4.6 beats 5 reviews at 5.0); price only breaks a tie.
+4. **It gives you a verdict**, spoken and on-screen — the pick, a runner-up, the dish photo, why it won, anything to watch out for — and hands you straight to the order page.
 
-## Status — what's built so far
+Every number in that verdict traces back to a real fetch. If a source comes back empty, the answer is "nothing found," never a guess dressed up as one.
 
-- ✅ **Proven engine** (validated on the *shopping* domain first): ElevenLabs voice agent + **live context.dev structured extraction** (Noon/Amazon, Cloudflare anti-bot bypassed) + async orchestration + grounded verdict + labelled-fixture fallback. The marketplace adapter pulls **real live prices** — verified end-to-end.
-- 🔜 **Food build:** repoint the sources to delivery apps, add the **client-tool deep-link hand-off** + screenshot cards. **~70% of the engine carries over** — the domain is a *variable* (the seam this was built around). See [FOOD-FLOW §4](docs/FOOD-FLOW.md).
+## See it in action
 
-## Surfaces
+[![Watch the DaleelBites Chrome extension demo](https://drive.google.com/thumbnail?id=1DsnuPCDhiJ5WtbAn18-GRJIZTf5yFRBV&sz=w1280)](https://drive.google.com/file/d/1DsnuPCDhiJ5WtbAn18-GRJIZTf5yFRBV/view)
 
-- **Web app** (`apps/web`) — the voice console: speak or type a craving, watch the verdict land with the dish photo, price, rating and a real reviewer's words, then click through to the order page.
-- **Chrome extension** (`apps/extension`) — the same comparison from the toolbar, and a "Compare on DaleelBites" button injected into Talabat / Deliveroo / Noon Food themselves. [Install & setup →](apps/extension/README.md)
-- **Accounts** — signup/login on both surfaces; a signed-in user's cravings and verdicts are saved and the browser attaches to *their* job rather than the newest global one.
+*Click the image to play — GitHub can't embed Google Drive video directly, so this opens it in Drive.*
 
-## Stack
+## Try it live
 
-Voice: **ElevenLabs** Agents (WebRTC, barge-in, client/server tools, RAG). Live data: **context.dev** (search · extract · screenshot · brand). Backend: **FastAPI** (`apps/api`), accounts on stdlib `sqlite3` + HS256 JWT — no extra dependency, no database to provision. Frontend: **Next.js 14** (`apps/web`), polling the API directly. Built with **Devin** — see [docs/AGENTIC_ENGINEERING.md](docs/AGENTIC_ENGINEERING.md).
+| | |
+|---|---|
+| **Web app** | <https://hack-build-2.vercel.app> |
+| **API** | <https://hack-build-2-production.up.railway.app> |
+| **Chrome extension** | see [apps/extension/README.md](apps/extension/README.md) — load-unpacked, no store listing yet |
 
-**Design:** "Raw Form" — Swiss-brutalist poster on warm paper (`#E4E2DD` base, `#1E1E1E` ink, `#DB4A2B` accent), Clash Display headlines over Satoshi body, blurred multiply blobs for depth. Content reveals are CSS keyframes, never JS-driven opacity, so a stalled animation can never leave a page blank.
+## How it's built
 
-## Run
+| Piece | What it does |
+|---|---|
+| `apps/api` | FastAPI backend. Runs the research pipeline, ranks results, builds the verdict, holds user accounts. |
+| `apps/web` | Next.js app. The voice console — talk or type, watch the verdict land. |
+| `apps/extension` | Chrome extension (MV3). Same voice agent in a side panel, plus a "Compare" button injected into the delivery apps themselves. |
+| `docs/` | Deep-dive docs — architecture, data contracts, vendor API notes, deployment guide. |
 
-**Backend** (`apps/api`):
+**Stack:** ElevenLabs (voice), context.dev (live web search/extraction), FastAPI + SQLite (backend, accounts), Next.js (web), vanilla JS + esbuild (extension).
+
+## Run it yourself
+
+### Backend
+
 ```bash
-python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # (Scripts→bin on macOS/Linux)
-# set CONTEXT_DEV_API_KEY in apps/api/.env
+cd apps/api
+python -m venv .venv
+.venv/Scripts/pip install -r requirements.txt   # Scripts → bin on macOS/Linux
+```
+
+Set `CONTEXT_DEV_API_KEY` in `apps/api/.env` (without it, the API still runs and returns clearly-labelled sample data instead of live prices).
+
+```bash
 .venv/Scripts/uvicorn app.main:app --reload --port 8000
 ```
-**Frontend** (`apps/web`):
+
+### Web app
+
 ```bash
+cd apps/web
 npm install
-# set ELEVENLABS_API_KEY + NEXT_PUBLIC_ELEVENLABS_AGENT_ID + NEXT_PUBLIC_API_URL in apps/web/.env.local
+```
+
+Set in `apps/web/.env.local`: `ELEVENLABS_API_KEY`, `NEXT_PUBLIC_ELEVENLABS_AGENT_ID`, and `NEXT_PUBLIC_API_URL` (point it at your local backend, or leave it unset to use the live one).
+
+```bash
 npm run dev
 ```
-**Extension** (`apps/extension`): `chrome://extensions` → Developer mode → **Load unpacked** → pick the folder. Nothing else to configure; the production API is compiled in.
 
-Live data requires a real `CONTEXT_DEV_API_KEY`; without one the adapters return **clearly-labelled** sample data (`is_fixture=true`) — the demo never silently fakes live prices.
+### Chrome extension
+
+```bash
+cd apps/extension
+npm install
+npm run build
+```
+
+Then `chrome://extensions` → enable **Developer mode** → **Load unpacked** → select `apps/extension`. Full walkthrough (including the voice side panel and mic permission) in [apps/extension/README.md](apps/extension/README.md).
+
+## Learn more
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the pieces fit together
+- [docs/CONTRACTS.md](docs/CONTRACTS.md) — the data shapes and anti-fabrication rules the verdict has to obey
+- [docs/VENDOR-CONTRACTS.md](docs/VENDOR-CONTRACTS.md) — what was actually verified about each delivery app's pages
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — every environment variable, and what needs setting up by hand
+- [docs/FOOD-FLOW.md](docs/FOOD-FLOW.md) — the product flow this was designed around
